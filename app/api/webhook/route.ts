@@ -24,8 +24,17 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
+    // Log every incoming webhook so we can diagnose what Green API is sending
+    console.log('WEBHOOK RECEIVED:', JSON.stringify({
+      typeWebhook:  body.typeWebhook,
+      messageType:  body.messageData?.typeMessage,
+      hasImageData: !!body.messageData?.imageMessageData,
+      hasDownloadUrl: !!body.messageData?.imageMessageData?.downloadUrl,
+    }))
+
     // ── Guard: only process messages, not delivery receipts etc. ──────────────
     if (body.typeWebhook !== 'incomingMessageReceived') {
+      console.log('SKIPPED: typeWebhook is', body.typeWebhook)
       return NextResponse.json({ ok: true })
     }
 
