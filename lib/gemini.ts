@@ -1,16 +1,9 @@
 // ── lib/gemini.ts ─────────────────────────────────────────────────────────────
-// This is our "smart assistant" that reads the product image and caption
-// and turns them into structured data (name, price, description, category).
-//
-// Think of it like handing a product photo to a savvy shop assistant
-// and asking: "What is this, what does it cost, and how would you describe it?"
+// Calls the Gemini API directly via REST (v1 endpoint) to avoid SDK
+// version mismatches. Reads the product image + caption and returns
+// structured product data: name, description, price, currency, category.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { GoogleGenerativeAI } from '@google/generative-ai'
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-
-// The structured data we expect Gemini to return
 export type ProductInfo = {
   name: string
   description: string
@@ -20,22 +13,28 @@ export type ProductInfo = {
 }
 
 export async function extractProductInfo(
-  imageUrl: string,
+  imageData: string,   // either a URL or a base64 dataUri (data:mime/type;base64,...)
   caption: string
 ): Promise<ProductInfo> {
-  // Use Gemini 1.5 Flash — fast, accurate, and FREE tier gives 15 requests/min
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+  let imageBase64: string
+  let mimeType: string
 
-  // Step 1: Download the image from Green API and convert to base64
-  // (Gemini needs the actual image bytes, not just a URL)
-  const imageResponse = await fetch(imageUrl)
-  if (!imageResponse.ok) throw new Error('Could not download image from WhatsApp')
+  if (imageData.startsWith('data:')) {
+    // Pre-downloaded dataUri — parse the base64 directly (no extra download needed)
+    const [header, data] = imageData.split(',')
+    imageBase64 = data
+    mimeType    = header.split(':')[1].split(';')[0]
+  } else {
+    // Plain URL — download it ourselves
+    const imageResponse = await fetch(imageData)
+    if (!imageResponse.ok) {
+      throw new Error(`Could not download image for Gemini: ${imageResponse.status}`)
+    }
+    const imageBuffer = await imageResponse.arrayBuffer()
+    imageBase64 = Buffer.from(imageBuffer).toString('base64')
+    mimeType    = imageResponse.headers.get('content-type') || 'image/jpeg'
+  }
 
-  const imageBuffer = await imageResponse.arrayBuffer()
-  const imageBase64 = Buffer.from(imageBuffer).toString('base64')
-  const mimeType = (imageResponse.headers.get('content-type') || 'image/jpeg') as string
-
-  // Step 2: Ask Gemini to analyze the image AND the caption together
   const prompt = `
 You are a product listing assistant for a Nigerian online store.
 Analyze the product image and the seller's caption below.
@@ -61,27 +60,44 @@ Rules:
 - Return ONLY the JSON object. Nothing else.
 `
 
-  const result = await model.generateContent([
-    { inlineData: { data: imageBase64, mimeType } },
-    prompt,
-  ])
+  // Call Gemini via the stable v1 REST endpoint
+  const apiKey = process.env.GEMINI_API_KEY!
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: mimeType, data: imageBase64 } },
+            { text: prompt },
+          ],
+        }],
+        generationConfig: { temperature: 0.2 },
+      }),
+    }
+  )
 
-  const rawText = result.response.text().trim()
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`Gemini API error ${res.status}: ${errText}`)
+  }
 
-  // Step 3: Parse the JSON response — with a safety net if it fails
+  const json    = await res.json()
+  const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || ''
+
   try {
-    // Remove any accidental markdown code fences (``` json ... ```)
     const cleanText = rawText.replace(/```json|```/g, '').trim()
     return JSON.parse(cleanText) as ProductInfo
   } catch {
-    // If Gemini gave us something unexpected, return safe defaults
     console.error('Gemini parse error. Raw response:', rawText)
     return {
-      name: 'New Product',
+      name:        'New Product',
       description: caption || 'Fresh item available. Send an enquiry for more details.',
-      price: null,
-      currency: 'NGN',
-      category: 'Other',
+      price:       null,
+      currency:    'NGN',
+      category:    'Other',
     }
   }
 }

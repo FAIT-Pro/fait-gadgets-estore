@@ -19,21 +19,37 @@ cloudinary.config({
 })
 
 /**
- * Downloads an image from a URL and uploads it to Cloudinary.
- * Returns the optimized, permanent CDN URL.
+ * Accepts either a plain URL or a pre-downloaded base64 dataUri and uploads
+ * to Cloudinary. When the webhook has already downloaded the image (Meta API
+ * requires an auth header to download), passing the dataUri skips a redundant
+ * download round-trip.
  *
- * @param imageUrl - Direct URL to the image (from Green API / WhatsApp)
- * @returns Optimized Cloudinary URL for use in the storefront
+ * @param input - Direct URL or base64 dataUri (data:mime/type;base64,...)
+ * @returns Optimized Cloudinary CDN URL for use in the storefront
  */
-export async function uploadProductImage(imageUrl: string): Promise<string> {
-  const result = await cloudinary.uploader.upload(imageUrl, {
-    folder: 'estore-products',       // organizes uploads into a folder
+export async function uploadProductImage(input: string): Promise<string> {
+  let dataUri: string
+
+  if (input.startsWith('data:')) {
+    // Already a base64 dataUri — no download needed
+    dataUri = input
+  } else {
+    // Plain URL — download the image bytes first
+    const response = await fetch(input)
+    if (!response.ok) {
+      throw new Error(`Failed to download image (${response.status}): ${input}`)
+    }
+    const buffer = Buffer.from(await response.arrayBuffer())
+    const mimeType = response.headers.get('content-type') || 'image/jpeg'
+    dataUri = `data:${mimeType};base64,${buffer.toString('base64')}`
+  }
+
+  // Upload the bytes directly to Cloudinary
+  const result = await cloudinary.uploader.upload(dataUri, {
+    folder: 'estore-products',
     transformation: [
-      // Resize: max 800×800px, keeping original proportions
       { width: 800, height: 800, crop: 'limit' },
-      // Auto-compress to smallest file size without visible quality loss
       { quality: 'auto' },
-      // Convert to WebP (loads faster on modern phones)
       { fetch_format: 'auto' },
     ],
   })

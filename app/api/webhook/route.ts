@@ -1,49 +1,75 @@
 // ── app/api/webhook/route.ts ───────────────────────────────────────────────────
-// This is the BRAIN of the whole system.
+// Handles incoming webhooks from Meta WhatsApp Cloud API.
 //
-// Here's what happens every time you forward a product image to your bot:
+// TWO handlers live here:
 //
-//   1. Green API receives the message → sends it here via webhook
-//   2. We check it has an image (skip plain text messages)
-//   3. Upload the image to Cloudinary
-//   4. Send image + caption to Gemini AI → get product name, price, description
-//   5. Save the product to Supabase database
-//   6. Send YOU a WhatsApp confirmation
+//   GET  → Webhook verification
+//          When you register this URL in Meta Developer Console, Meta sends
+//          a one-time GET request to confirm this URL belongs to you.
+//          We check the verify token and respond with the challenge string.
 //
-// Special command: if you send "SOLD" to the bot, it marks your most
-// recent product as sold and removes it from the storefront.
+//   POST → Incoming messages
+//          Every time someone sends a message to the WhatsApp Business number,
+//          Meta sends a POST here with the message data.
+//
+// Full product-listing flow:
+//   1. Seller sends an image to the WhatsApp Business number
+//   2. Meta sends this POST with a media ID (not a direct URL)
+//   3. We ask Meta for the download URL using the media ID
+//   4. We download the image bytes (requires auth header)
+//   5. Upload to Cloudinary → get permanent CDN URL
+//   6. Send image + caption to Gemini → get product name, price, description
+//   7. Save product to Supabase
+//   8. Send seller a WhatsApp confirmation
+//
+// Special command: send "SOLD" as a text message to mark the most recent
+// product as sold.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { NextRequest, NextResponse } from 'next/server'
-import { extractProductInfo }       from '@/lib/gemini'
-import { uploadProductImage }       from '@/lib/cloudinary'
-import { supabaseAdmin }            from '@/lib/supabase'
-import { notifySeller, productListedMessage } from '@/lib/notify'
+import { NextRequest, NextResponse }                    from 'next/server'
+import { extractProductInfo }                           from '@/lib/gemini'
+import { uploadProductImage }                           from '@/lib/cloudinary'
+import { supabaseAdmin }                                from '@/lib/supabase'
+import { notifySeller, productListedMessage }           from '@/lib/notify'
 
+// ── GET: Webhook verification ─────────────────────────────────────────────────
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const mode      = searchParams.get('hub.mode')
+  const token     = searchParams.get('hub.verify_token')
+  const challenge = searchParams.get('hub.challenge')
+
+  // If the verify token matches what we set in Meta console → confirm ownership
+  if (mode === 'subscribe' && token === process.env.META_WEBHOOK_VERIFY_TOKEN) {
+    return new Response(challenge, { status: 200 })
+  }
+
+  return new Response('Forbidden', { status: 403 })
+}
+
+// ── POST: Incoming messages ───────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
-    // Log the FULL raw body so we can see exactly what Green API sends
-    console.log('WEBHOOK FULL BODY:', JSON.stringify(body))
+    // Meta wraps everything in a nested structure:
+    // body.entry[0].changes[0].value.messages[0]
+    const value    = body.entry?.[0]?.changes?.[0]?.value
+    const messages = value?.messages
 
-    // ── Guard: only process messages, not delivery receipts etc. ──────────────
-    if (body.typeWebhook !== 'incomingMessageReceived') {
-      console.log('SKIPPED: typeWebhook was', body.typeWebhook)
+    // If no messages (e.g. delivery receipt, read receipt) → ignore silently
+    if (!messages || messages.length === 0) {
       return NextResponse.json({ ok: true })
     }
 
-    const messageData = body.messageData
-    if (!messageData) return NextResponse.json({ ok: true })
+    const message   = messages[0]
+    const messageId = message.id  // unique Meta message ID (for deduplication)
 
-    const messageType = messageData.typeMessage?.toLowerCase()
-
-    // ── Handle "SOLD" command (text message) ──────────────────────────────────
-    if (messageType === 'textmessage') {
-      const text = (messageData.textMessageData?.textMessage || '').trim().toUpperCase()
+    // ── Handle "SOLD" text command ────────────────────────────────────────────
+    if (message.type === 'text') {
+      const text = (message.text?.body || '').trim().toUpperCase()
 
       if (text === 'SOLD') {
-        // Mark the most recently listed product as sold
         const { data: latest } = await supabaseAdmin
           .from('products')
           .select('id, name')
@@ -66,21 +92,17 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Handle image messages → list as product ───────────────────────────────
-    if (messageType !== 'imagemessage') {
-      // Ignore voice notes, stickers, documents etc.
+    if (message.type !== 'image') {
+      // Ignore voice notes, stickers, documents, etc.
       return NextResponse.json({ ok: true })
     }
 
-    const imageData = messageData.imageMessageData
-    const imageUrl  = imageData?.downloadUrl
-    const caption   = imageData?.caption || ''
+    const mediaId = message.image?.id
+    const caption = message.image?.caption || ''
 
-    if (!imageUrl) {
-      return NextResponse.json({ ok: true })
-    }
+    if (!mediaId) return NextResponse.json({ ok: true })
 
-    // Deduplication: don't list the same WhatsApp message twice
-    const messageId = body.idMessage
+    // Deduplication: don't list the same message twice
     if (messageId) {
       const { data: existing } = await supabaseAdmin
         .from('products')
@@ -91,13 +113,38 @@ export async function POST(request: NextRequest) {
       if (existing) return NextResponse.json({ ok: true, duplicate: true })
     }
 
-    // ── Step 1: Upload image to Cloudinary ────────────────────────────────────
-    const optimizedImageUrl = await uploadProductImage(imageUrl)
+    const accessToken = process.env.META_ACCESS_TOKEN!
 
-    // ── Step 2: Extract product details with Gemini AI ────────────────────────
-    const productInfo = await extractProductInfo(imageUrl, caption)
+    // ── Step 1: Ask Meta for the image download URL ───────────────────────────
+    // Meta gives us a media ID, not a direct URL.
+    // We must exchange the ID for a real download URL first.
+    const mediaRes = await fetch(
+      `https://graph.facebook.com/v25.0/${mediaId}`,
+      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    )
+    if (!mediaRes.ok) throw new Error(`Failed to get media info: ${mediaRes.status}`)
+    const mediaInfo       = await mediaRes.json()
+    const imageDownloadUrl = mediaInfo.url
 
-    // ── Step 3: Save to database ──────────────────────────────────────────────
+    // ── Step 2: Download the image bytes (auth header required) ──────────────
+    // Meta's image URLs expire and require a Bearer token to download.
+    const imageRes = await fetch(imageDownloadUrl, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    })
+    if (!imageRes.ok) throw new Error(`Failed to download image: ${imageRes.status}`)
+
+    const imageBuffer = await imageRes.arrayBuffer()
+    const imageBase64 = Buffer.from(imageBuffer).toString('base64')
+    const mimeType    = imageRes.headers.get('content-type') || 'image/jpeg'
+    const dataUri     = `data:${mimeType};base64,${imageBase64}`
+
+    // ── Step 3: Upload to Cloudinary ──────────────────────────────────────────
+    const optimizedImageUrl = await uploadProductImage(dataUri)
+
+    // ── Step 4: Extract product details with Gemini ───────────────────────────
+    const productInfo = await extractProductInfo(dataUri, caption)
+
+    // ── Step 5: Save to Supabase ──────────────────────────────────────────────
     const { data: product, error } = await supabaseAdmin
       .from('products')
       .insert({
@@ -115,15 +162,16 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
 
-    // ── Step 4: Notify you on WhatsApp ────────────────────────────────────────
+    // ── Step 6: Notify seller ─────────────────────────────────────────────────
     const productUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/product/${product.id}`
     await notifySeller(productListedMessage(productInfo.name, productInfo.price, productUrl))
 
     return NextResponse.json({ ok: true, product })
 
   } catch (error) {
-    console.error('Webhook processing error:', error)
-    // Return 200 so Green API doesn't keep retrying a broken message
-    return NextResponse.json({ ok: false, error: 'Processing failed' })
+    const msg = error instanceof Error ? error.message : JSON.stringify(error)
+    console.error('Webhook processing error:', msg)
+    // Always return 200 so Meta does not retry endlessly
+    return NextResponse.json({ ok: false })
   }
 }
