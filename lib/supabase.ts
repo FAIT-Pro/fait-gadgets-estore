@@ -34,7 +34,8 @@ export type Product = {
   currency: string
   category: string
   image_url: string | null
-  status: 'available' | 'sold'
+  image_urls: string[]
+  status: 'available' | 'sold' | 'draft'
   created_at: string
   updated_at: string
 }

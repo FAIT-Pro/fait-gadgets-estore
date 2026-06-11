@@ -27,6 +27,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse }                    from 'next/server'
+import { createHmac }                                  from 'crypto'
 import { extractProductInfo }                           from '@/lib/gemini'
 import { uploadProductImage }                           from '@/lib/cloudinary'
 import { supabaseAdmin }                                from '@/lib/supabase'
@@ -50,7 +51,25 @@ export async function GET(request: NextRequest) {
 // ── POST: Incoming messages ───────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    // ── Signature verification ────────────────────────────────────────────────
+    // Meta signs every webhook delivery with HMAC-SHA256 using META_APP_SECRET.
+    // We verify before processing to block forged requests.
+    // Only enforced when META_APP_SECRET is set — safe to deploy before the
+    // env var is added, but MUST be set before going live.
+    const rawBody   = await request.text()
+    const signature = request.headers.get('x-hub-signature-256')
+    const appSecret = process.env.META_APP_SECRET
+
+    if (appSecret) {
+      const expected = 'sha256=' + createHmac('sha256', appSecret).update(rawBody).digest('hex')
+      if (signature !== expected) {
+        console.warn('Webhook rejected — signature mismatch')
+        // Return 200 so Meta does not retry; we just silently drop it
+        return NextResponse.json({ ok: false })
+      }
+    }
+
+    const body = JSON.parse(rawBody)
 
     // Meta wraps everything in a nested structure:
     // body.entry[0].changes[0].value.messages[0]

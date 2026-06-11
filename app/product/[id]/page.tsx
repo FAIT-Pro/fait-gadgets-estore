@@ -1,26 +1,24 @@
 // ── app/product/[id]/page.tsx ─────────────────────────────────────────────────
-// The full product page a visitor sees when they click a product card.
-// Shows the full image, description, price, and an "Enquire" button
-// that opens the Tawk.to live chat for them to message you.
+// Full product page — image gallery, description, price, enquire button.
+// Uses supabaseAdmin so sold products show a SOLD overlay instead of 404.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { supabase }       from '@/lib/supabase'
-import Image              from 'next/image'
+import { supabaseAdmin }  from '@/lib/supabase'
 import Link               from 'next/link'
 import { notFound }       from 'next/navigation'
 import EnquireButton      from '@/components/EnquireButton'
+import ImageGallery       from '@/components/ImageGallery'
 import type { Metadata }  from 'next'
 import type { Product }   from '@/lib/supabase'
 
 export const revalidate = 60
 
-// ── Dynamic SEO title/description for each product ───────────────────────────
 export async function generateMetadata({
   params,
 }: {
   params: { id: string }
 }): Promise<Metadata> {
-  const { data } = await supabase.from('products').select('name, description').eq('id', params.id).single()
+  const { data } = await supabaseAdmin.from('products').select('name, description').eq('id', params.id).single()
   if (!data) return { title: 'Product Not Found' }
   return {
     title: `${data.name} | ${process.env.NEXT_PUBLIC_STORE_NAME || 'My Store'}`,
@@ -28,7 +26,6 @@ export async function generateMetadata({
   }
 }
 
-// ── Category badge colors ──────────────────────────────────────────────────
 const categoryStyle: Record<string, string> = {
   'Fashion':       'bg-pink-100 text-pink-700',
   'Electronics':   'bg-blue-100 text-blue-700',
@@ -43,7 +40,8 @@ export default async function ProductPage({
 }: {
   params: { id: string }
 }) {
-  const { data: product } = await supabase
+  // Use supabaseAdmin so sold/draft products are accessible (fixes the 404 bug for sold items)
+  const { data: product } = await supabaseAdmin
     .from('products')
     .select('*')
     .eq('id', params.id)
@@ -52,10 +50,19 @@ export default async function ProductPage({
   if (!product) notFound()
 
   const p = product as Product
-  const catStyle = categoryStyle[p.category] || categoryStyle['Other']
+
+  // Build the images array — use image_urls if available, else fall back to image_url
+  const images: string[] = (p.image_urls && p.image_urls.length > 0)
+    ? p.image_urls
+    : (p.image_url ? [p.image_url] : [])
+
+  const catStyle       = categoryStyle[p.category] || categoryStyle['Other']
   const formattedPrice = p.price
     ? `${p.currency === 'NGN' ? '₦' : '$'}${Number(p.price).toLocaleString()}`
     : 'Price on enquiry'
+
+  // Don't show draft products to the public
+  if (p.status === 'draft') notFound()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -74,33 +81,12 @@ export default async function ProductPage({
 
       <main className="max-w-2xl mx-auto px-4 py-6">
 
-        {/* ── Product image ────────────────────────────────────────────────── */}
-        <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 shadow-sm mb-5">
-          {p.image_url ? (
-            <Image
-              src={p.image_url}
-              alt={p.name}
-              fill
-              className="object-cover"
-              sizes="(max-width: 672px) 100vw, 672px"
-              priority
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-              <svg width="60" height="60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-              </svg>
-            </div>
-          )}
-
-          {/* Sold banner */}
-          {p.status === 'sold' && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <span className="text-white font-bold text-2xl tracking-wide">SOLD</span>
-            </div>
-          )}
-        </div>
+        {/* ── Image gallery ─────────────────────────────────────────────────── */}
+        <ImageGallery
+          images={images}
+          productName={p.name}
+          isSold={p.status === 'sold'}
+        />
 
         {/* ── Product details card ─────────────────────────────────────────── */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
@@ -118,12 +104,9 @@ export default async function ProductPage({
           </div>
 
           {p.description && (
-            <p className="text-gray-600 text-sm leading-relaxed mb-5">
-              {p.description}
-            </p>
+            <p className="text-gray-600 text-sm leading-relaxed mb-5">{p.description}</p>
           )}
 
-          {/* ── Action buttons ──────────────────────────────────────────────── */}
           <div className="flex gap-3">
             {p.status === 'available' ? (
               <EnquireButton productId={p.id} productName={p.name} />
@@ -135,7 +118,6 @@ export default async function ProductPage({
           </div>
         </div>
 
-        {/* ── Back to store link ──────────────────────────────────────────── */}
         <div className="text-center mt-6">
           <Link href="/" className="text-sm text-brand-600 hover:underline">
             ← Browse more products

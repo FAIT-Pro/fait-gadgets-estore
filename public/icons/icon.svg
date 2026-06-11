@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#16a34a"/>
+  <!-- Shopping bag -->
+  <path d="M176 192h-24a8 8 0 00-8 8l-24 176a8 8 0 008 8h256a8 8 0 008-8l-24-176a8 8 0 00-8-8h-24
+           v-16c0-57.4-46.6-104-104-104s-104 46.6-104 104v16z
+           M208 192v-16c0-26.5 21.5-48 48-48s48 21.5 48 48v16H208z"
+        fill="white"/>
+</svg>

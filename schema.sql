@@ -14,7 +14,7 @@ create table if not exists products (
   category      text        default 'Other',
   image_url     text,
   status        text        default 'available',   -- 'available' | 'sold'
-  wa_message_id text,                              -- Green API message ID (for deduplication)
+  wa_message_id text,                              -- Meta message ID (for deduplication — prevents same message listing twice)
   created_at    timestamptz default now(),
   updated_at    timestamptz default now()
 );

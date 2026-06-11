@@ -3,14 +3,9 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        // Allows product images from Cloudinary to load
+        // Product images served from Cloudinary CDN
         protocol: 'https',
         hostname: 'res.cloudinary.com',
-      },
-      {
-        // Allows Green API media downloads during processing
-        protocol: 'https',
-        hostname: '*.green-api.com',
       },
     ],
   },
