@@ -4109,6 +4109,33 @@ curl -s -X POST https://fait-gadgets-estore.vercel.app/api/webhook \
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
 
+<!-- HTML log style fixes — 12 June 2026 -->
+<div style="margin-top:32px;">
+  <div class="turn user">
+    <div class="label">Felix</div>
+    <div class="bubble">Correct these on the HTML log:
+Session 4 summary and Session 5 final summary boxes are white, making it difficult to see the text.
+The footer text colour does not make it readable: Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 12 June 2026 ...</div>
+  </div>
+  <div class="turn assistant">
+    <div class="label">Claude</div>
+    <div class="bubble">
+      <p>Root cause: the page is dark-themed (<code>background:#0d0d0d</code>) but the summary boxes used a light green background (<code>#f0fdf4</code>) with no explicit text color — so the page's light text became invisible against the pale box. The footer used <code>color:#333</code> (dark gray) against the same dark background.</p>
+      <p><strong>Fixes applied:</strong></p>
+      <ul>
+        <li>Summary boxes (Session 4 + 5): <code>background:#f0fdf4</code> → <code>background:#0a2510; color:#b3ffcc; border-left: 4px solid #25D366</code> — matches dark theme</li>
+        <li>Footer: <code>color:#333</code> → <code>color:#666</code> + added <code>border-top:1px solid #222</code> separator</li>
+      </ul>
+      <pre><code>git add "WhatsApp-Estore - Claude Dev Session (14_05_2026).html"
+git commit -m "fix: HTML log — dark summary boxes + readable footer on dark theme"
+git push
+# d5eb7ba → main ✅</code></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
 <hr />
 <div style="color:#666; font-size:0.78rem; text-align:center; padding-top:16px; border-top:1px solid #222; margin-top:24px;">
   Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 12 June 2026<br/>

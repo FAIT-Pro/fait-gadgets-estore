@@ -347,6 +347,16 @@ BUG 2 is fully resolved and verified in production.
 ### TypeScript
 `npx tsc --noEmit` — **0 errors**
 
+#### HTML session log styling fixes ✅
+Owner reported that Session 4 and Session 5 summary boxes showed white/unreadable text, and the footer was invisible.
+
+**Root cause:** The HTML log uses a dark-themed page (`background:#0d0d0d`). The summary boxes used `background:#f0fdf4` (light green) with no explicit text color — the page's default light-colored text became invisible against the pale box. The footer used `color:#333` on a near-black background.
+
+**Fixes applied:**
+- Summary boxes (both Session 4 + Session 5): `background:#0a2510; border-left:4px solid #25D366; border-radius:6px; color:#b3ffcc;`
+- Footer: `color:#666` + `border-top:1px solid #222; margin-top:24px;`
+- Committed: `d5eb7ba` "fix: HTML log — dark summary boxes + readable footer on dark theme"
+
 ### Final state after Session 5
 All known bugs fixed. All env vars set. All code committed, pushed, and live.
 
@@ -360,6 +370,7 @@ All known bugs fixed. All env vars set. All code committed, pushed, and live.
 | Webhook security (BUG 2) | ✅ Verified in production |
 | ADMIN_PASSWORD | ✅ Strengthened |
 | All env vars | ✅ Complete on Vercel |
+| HTML log styling | ✅ Fixed — dark-theme compatible |
 
 ---
 
