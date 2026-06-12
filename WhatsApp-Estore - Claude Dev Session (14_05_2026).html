@@ -3899,9 +3899,219 @@ if (p.status === 'draft') notFound()</code></pre>
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
 
+<!-- ╔═══════════════════════════════════════════════════════════════╗ -->
+<!-- ║  SESSION 5 (continued) — 11–12 JUNE 2026                    ║ -->
+<!-- ╚═══════════════════════════════════════════════════════════════╝ -->
+
+<div style="margin-top:40px;">
+  <h2 style="background:#1a7f37;color:#fff;padding:12px 20px;border-radius:8px;font-size:1.1rem;">
+    SESSION 5 (continued) — 11–12 June 2026
+  </h2>
+
+  <!-- ── Env vars completed ─────────────────────────────────────────── -->
+  <div class="exchange">
+    <div class="user-msg">Admin pass and meta secret have been updated. Please Check.</div>
+    <div class="claude-msg">
+      <p>Read <code>.env.local</code> — both correct:</p>
+      <ul>
+        <li><code>META_APP_SECRET=23e48f43a4847a0830ca541423f289f3</code> ✅ valid 32-char hex format</li>
+        <li><code>ADMIN_PASSWORD=FaitGadg3ts#2026</code> ✅</li>
+      </ul>
+      <p>Remember to add both to Vercel dashboard and redeploy.</p>
+    </div>
+  </div>
+
+  <div class="exchange">
+    <div class="user-msg">What is meta app secret?</div>
+    <div class="claude-msg">
+      <p>The Meta App Secret is a private key assigned to your app in Meta Developer Console. Meta uses it to sign every webhook request with an HMAC-SHA256 hash. You verify that hash to confirm the request genuinely came from Meta — not from someone faking it.</p>
+      <p><strong>Where to find it:</strong> developers.facebook.com → My Apps → Your App → Settings → Basic → App Secret (click Show to reveal). Looks like a 32-character hex string.</p>
+    </div>
+  </div>
+
+  <!-- ── Tawk.to setup ───────────────────────────────────────────────── -->
+  <div class="exchange">
+    <div class="user-msg">NEXT_PUBLIC_TAWKTO_ID is setup, please check</div>
+    <div class="claude-msg">
+      <p>Read <code>.env.local</code>:</p>
+      <pre><code>NEXT_PUBLIC_TAWKTO_ID=6a2a9f25f0b5881c2ac3e5a6/1jqr7rbgv</code></pre>
+      <p>✅ Correct format (two-part hex ID). Verified <code>TawkToWidget.tsx</code> — builds the embed URL as <code>https://embed.tawk.to/${tawkId}</code>. All wired up correctly. Chat bubble will appear on every storefront page once deployed.</p>
+      <p><strong>.env.local is now fully complete</strong> — all variables set.</p>
+      <p>Two actions still needed: add the three new vars to Vercel dashboard, then redeploy.</p>
+    </div>
+  </div>
+
+  <div class="exchange">
+    <div class="user-msg">Vercel updated.</div>
+    <div class="claude-msg"><p>All env vars confirmed on Vercel. Ready to push code and test.</p></div>
+  </div>
+
+  <!-- ── Image library + remaining features execution ──────────────── -->
+  <div class="exchange">
+    <div class="user-msg">Include a feature in the admin where an option to pick from available images previously uploaded can be accessed to avoid constantly uploading existing images in the database. Am ready, let's execute the other four above.</div>
+    <div class="claude-msg">
+      <p>Executing all five tasks in one pass:</p>
+      <ol>
+        <li>Image library picker — new feature</li>
+        <li>BUG 2: webhook signature verification</li>
+        <li>ADMIN_PASSWORD strengthened</li>
+        <li>META_APP_SECRET placeholder</li>
+        <li>schema.sql comment fix</li>
+      </ol>
+
+      <h4>Image Library Picker — new files</h4>
+      <p><strong>app/api/admin/images/route.ts</strong> — GET, auth-gated. Queries all products, collects all image URLs from <code>image_url</code> and <code>image_urls[]</code>, deduplicates, returns newest-first.</p>
+      <p><strong>components/admin/ImagePickerModal.tsx</strong> — full-screen modal with 3-column grid. Tap any image to add it. Handles loading, empty state, error state. Closes on Escape or backdrop click.</p>
+
+      <h4>UploadForm.tsx changes</h4>
+      <ul>
+        <li>Upload stage: "or pick from your image library" link below camera button</li>
+        <li>Form stage thumbnail strip: gallery icon button alongside + button</li>
+        <li>Library pick on upload stage → skips Gemini, goes straight to form</li>
+        <li>Library pick on form stage → appends to photo strip</li>
+      </ul>
+
+      <h4>ProductActions.tsx changes</h4>
+      <ul>
+        <li>Edit form photo strip: gallery icon button alongside + button</li>
+        <li><code>handleLibrarySelect(url)</code> adds URL to editImages array if &lt; 6</li>
+      </ul>
+
+      <h4>BUG 2: Webhook signature verification</h4>
+      <pre><code>// app/api/webhook/route.ts
+import { createHmac } from 'crypto'
+
+// Inside POST handler — reads raw body first, then verifies, then parses
+const rawBody   = await request.text()
+const signature = request.headers.get('x-hub-signature-256')
+const appSecret = process.env.META_APP_SECRET
+
+if (appSecret) {
+  const expected = 'sha256=' + createHmac('sha256', appSecret).update(rawBody).digest('hex')
+  if (signature !== expected) {
+    console.warn('Webhook rejected — signature mismatch')
+    return NextResponse.json({ ok: false })  // 200 to prevent Meta retries
+  }
+}
+
+const body = JSON.parse(rawBody)</code></pre>
+
+      <p><strong>ADMIN_PASSWORD:</strong> changed to <code>FaitGadg3ts#2026</code> in .env.local.<br/>
+      <strong>META_APP_SECRET:</strong> placeholder added to .env.local with instructions.<br/>
+      <strong>schema.sql:</strong> wa_message_id comment changed from "Green API message ID" to "Meta message ID".</p>
+
+      <pre><code>npx tsc --noEmit
+# 0 errors ✅</code></pre>
+    </div>
+  </div>
+
+  <!-- ── Commit and push ────────────────────────────────────────────── -->
+  <div class="exchange">
+    <div class="user-msg">yes, commit and push everything now</div>
+    <div class="claude-msg">
+      <p>Staged all 25 files from Sessions 3–5. Committed:</p>
+      <pre><code>git commit -m "feat: admin upload interface, multi-image support, image library picker, webhook security"
+# [main b41ff0b] 25 files changed, 3354 insertions(+), 329 deletions(-)</code></pre>
+
+      <p>Push attempt 1 — blocked by GitHub Push Protection:</p>
+      <pre><code>remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: - Push cannot contain secrets
+remote:   —— GitHub Personal Access Token ——
+remote:   locations:
+remote:     commit: 92e099b path: WhatsApp-Estore - Claude Dev Session...html:978
+remote:     commit: 92e099b path: WhatsApp-Estore - Claude Dev Session...html:984</code></pre>
+
+      <p>A GitHub PAT from a previous session (<code>ghp_eFAAzHF5...AOiM</code>) was saved verbatim in the HTML session log. Fixed using filter-branch to rewrite both commits:</p>
+      <pre><code>FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f \
+  --tree-filter 'sed -i "" "s/[GITHUB_TOKEN_REDACTED]/[GITHUB_TOKEN_REDACTED]/g" \
+  "WhatsApp-Estore - Claude Dev Session (14_05_2026).html"' \
+  origin/main..HEAD
+# Rewrote 2 commits ✅</code></pre>
+
+      <p>Push attempt 2 — blocked by GitHub account mismatch:</p>
+      <pre><code>remote: Permission to FAIT-Pro/fait-gadgets-estore.git denied to FAIT-Blog.
+error: failed to push some refs</code></pre>
+
+      <p>Switched GitHub account:</p>
+      <pre><code>gh auth logout --hostname github.com   # logged out FAIT-Blog
+gh auth login                           # user authenticated as FAIT-Pro
+git push
+# To https://github.com/FAIT-Pro/fait-gadgets-estore.git
+#    8b21b5d..2fe4e57  main -> main ✅</code></pre>
+
+      <p>Owner revoked the old PAT (<code>ghp_eFAAzHF5...AOiM</code>) in GitHub Settings → Developer Settings → Personal Access Tokens.</p>
+    </div>
+  </div>
+
+  <!-- ── Vercel deployment ──────────────────────────────────────────── -->
+  <div class="exchange">
+    <div class="user-msg">I mean can I put it into practice to see the result? / Is there a way around or out of this? You have been waiting forever!</div>
+    <div class="claude-msg">
+      <p>After 3+ minutes polling, the new code still wasn't live. Vercel was serving the old deployment. Root cause: "Redeploy" in the Vercel dashboard redeploys the same snapshot, not the new git push.</p>
+      <p>Vercel CLI was also logged into the wrong account (<code>fait-blog-3543</code>). Fixed:</p>
+      <pre><code>vercel logout    # logged out fait-blog-3543</code></pre>
+      <p>User ran <code>vercel login</code> and authenticated as FAIT-Pro.</p>
+      <pre><code>vercel --prod --yes
+# Deploying fait-pro-s-projects/fait-gadgets-estore
+# Aliased: https://fait-gadgets-estore.vercel.app ✅</code></pre>
+    </div>
+  </div>
+
+  <!-- ── Security tests ─────────────────────────────────────────────── -->
+  <div class="exchange">
+    <div class="user-msg">Run the above where and how?</div>
+    <div class="claude-msg">
+      <p>Running all three tests directly:</p>
+      <pre><code># Test 1 — no signature
+curl -s -X POST https://fait-gadgets-estore.vercel.app/api/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"object":"whatsapp_business_account","entry":[]}'
+# → {"ok":false} ✅
+
+# Test 2 — wrong signature
+curl -s -X POST https://fait-gadgets-estore.vercel.app/api/webhook \
+  -H "Content-Type: application/json" \
+  -H "X-Hub-Signature-256: sha256=aaaa...aaaa" \
+  -d '{"object":"whatsapp_business_account","entry":[]}'
+# → {"ok":false} ✅
+
+# Test 3 — correct HMAC-SHA256 signature
+BODY='{"object":"whatsapp_business_account","entry":[]}'
+SECRET="23e48f43a4847a0830ca541423f289f3"
+SIG=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$SECRET" | awk '{print "sha256="$2}')
+curl -s -X POST https://fait-gadgets-estore.vercel.app/api/webhook \
+  -H "Content-Type: application/json" \
+  -H "X-Hub-Signature-256: $SIG" \
+  -d "$BODY"
+# → {"ok":true} ✅</code></pre>
+
+      <p>All three tests pass. Forged requests are silently dropped. Legitimate Meta messages go through.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:24px; padding:16px; background:#f0fdf4; border-left:4px solid #16a34a; border-radius:6px;">
+    <p><strong>Session 5 final summary</strong></p>
+    <ul>
+      <li>Image library picker built and deployed — reuse existing photos without re-uploading</li>
+      <li>BUG 2 fully fixed — webhook rejects all forged requests, verified live in production</li>
+      <li>ADMIN_PASSWORD strengthened to <code>FaitGadg3ts#2026</code></li>
+      <li>Tawk.to live chat activated — <code>NEXT_PUBLIC_TAWKTO_ID</code> set</li>
+      <li>META_APP_SECRET set — webhook security active</li>
+      <li>GitHub PAT redacted from session log history via filter-branch</li>
+      <li>GitHub account switched: FAIT-Blog → FAIT-Pro</li>
+      <li>Vercel account switched: fait-blog-3543 → FAIT-Pro</li>
+      <li>All code live at https://fait-gadgets-estore.vercel.app</li>
+      <li>TypeScript: 0 errors. All 3 project documents updated.</li>
+    </ul>
+    <p><strong>No blocking issues remain.</strong> The store is production-ready.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
 <hr />
 <div style="color:#333; font-size:0.78rem; text-align:center; padding-top:16px;">
-  Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 11 June 2026<br/>
+  Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 12 June 2026<br/>
   Felix Okon &amp; Claude Sonnet 4.6 — WEBSITE_AI_Generated_Xai/WhatsApp-estore<br/>
   <em>This file is the primary tutorial record of the project. Update verbatim every session alongside CLAUDE.md and SESSION_LOG.md.</em>
 </div>

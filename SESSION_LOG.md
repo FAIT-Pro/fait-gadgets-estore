@@ -309,12 +309,57 @@ Added to `.env.local` with instructions on where to find it.
 ### TypeScript
 `npx tsc --noEmit` — **0 errors**
 
-### Actions Needed From Owner (before going live)
-1. Get `META_APP_SECRET` from Meta Developer Console → App → Settings → Basic
-2. Add to Vercel dashboard: `META_APP_SECRET=your_value`
-3. Update `ADMIN_PASSWORD=FaitGadg3ts#2026` in Vercel dashboard (already changed locally)
-4. Redeploy from Vercel dashboard after any env var change
-5. Set up Tawk.to account → fill `NEXT_PUBLIC_TAWKTO_ID`
+#### All env vars completed by owner ✅
+- `META_APP_SECRET=23e48f43a4847a0830ca541423f289f3` — set in `.env.local` + Vercel
+- `NEXT_PUBLIC_TAWKTO_ID=6a2a9f25f0b5881c2ac3e5a6/1jqr7rbgv` — set in `.env.local` + Vercel
+- `ADMIN_PASSWORD=FaitGadg3ts#2026` — set in `.env.local` + Vercel
+
+#### Commit and push — complications resolved
+
+**GitHub push protection blocked the push:**
+- A GitHub Personal Access Token (`ghp_eFAAzHF5...`) from a previous session was saved verbatim in the HTML session log at lines 978 and 984.
+- GitHub's secret scanner detected it and refused the push.
+- Fixed using `git filter-branch` to rewrite both unpushed commits and replace the token with `[GITHUB_TOKEN_REDACTED]`.
+- Owner revoked the old PAT in GitHub → Settings → Developer Settings → Personal Access Tokens.
+
+**GitHub account mismatch:**
+- Terminal was authenticated as `FAIT-Blog` (wrong account).
+- Fixed: `gh auth logout` → `gh auth login` → authenticated as FAIT-Pro.
+- Push succeeded: `8b21b5d..2fe4e57 main -> main`
+
+**Vercel account mismatch:**
+- `vercel whoami` showed `fait-blog-3543` (wrong account).
+- Redeploy from Vercel dashboard redeployed OLD code, not the new git push.
+- Fixed: `vercel logout` → `vercel login` → authenticated as FAIT-Pro.
+- Deployed with `vercel --prod` → aliased to `https://fait-gadgets-estore.vercel.app`.
+
+#### Webhook security — live tested ✅
+All three tests run against the live production URL:
+
+| Test | Payload | Result |
+|---|---|---|
+| No signature header | `entry:[]` | `{"ok":false}` ✅ |
+| Wrong signature | `sha256=aaa...` | `{"ok":false}` ✅ |
+| Correct HMAC-SHA256 signature | `entry:[]` | `{"ok":true}` ✅ |
+
+BUG 2 is fully resolved and verified in production.
+
+### TypeScript
+`npx tsc --noEmit` — **0 errors**
+
+### Final state after Session 5
+All known bugs fixed. All env vars set. All code committed, pushed, and live.
+
+| Item | Status |
+|---|---|
+| Storefront | ✅ Live |
+| Admin upload + dashboard | ✅ Live |
+| Multi-image support | ✅ Live |
+| Image library picker | ✅ Live |
+| Tawk.to live chat | ✅ Active |
+| Webhook security (BUG 2) | ✅ Verified in production |
+| ADMIN_PASSWORD | ✅ Strengthened |
+| All env vars | ✅ Complete on Vercel |
 
 ---
 

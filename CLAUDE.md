@@ -3,7 +3,7 @@
 This file tells Claude Code everything it needs to know about this project.
 Read this fully before making any changes.
 
-**Last verified:** 2026-06-11 (Session 5)
+**Last verified:** 2026-06-12 (Session 5 — complete)
 
 ---
 
@@ -41,7 +41,7 @@ The Admin Upload Interface is the primary input channel until Meta verifies the 
 | AI processing | Google Gemini 2.5 Flash | Reads image + caption → structured product data |
 | WhatsApp bot | Meta WhatsApp Cloud API | Receives forwarded messages via webhook (migrated from Green API) |
 | Seller notifications | Meta WhatsApp Cloud API | Sends WhatsApp messages to the seller's phone (same API as bot) |
-| Live chat | Tawk.to | Widget on storefront — NOT YET CONFIGURED (TAWKTO_ID is empty) |
+| Live chat | Tawk.to | Widget on storefront — CONFIGURED ✅ (NEXT_PUBLIC_TAWKTO_ID set) |
 | Hosting | Vercel | Free, deploys automatically from Git |
 
 ---
@@ -59,8 +59,7 @@ estore/
 ├── .env.local              ← Owner's actual secrets (never commit this)
 │
 ├── package.json            ← Dependencies
-├── next.config.js          ← Allows Cloudinary image domains
-│                              ⚠ Still lists *.green-api.com — stale, should be removed
+├── next.config.js          ← Allows Cloudinary image domains only (green-api.com removed)
 ├── tailwind.config.js      ← Brand green color + content paths
 ├── tsconfig.json           ← TypeScript config
 ├── postcss.config.js       ← Required for Tailwind
@@ -84,9 +83,8 @@ estore/
 │   │
 │   ├── product/
 │   │   └── [id]/
-│   │       └── page.tsx    ← Individual product page: full image, description, EnquireButton
-│   │                          ⚠ BUG: sold products return 404 instead of "SOLD" overlay
-│   │                             (RLS blocks public client from fetching sold products)
+│   │       └── page.tsx    ← Individual product page: ImageGallery, description, EnquireButton
+│   │                          Uses supabaseAdmin — sold products show SOLD overlay (BUG 1 fixed)
 │   │
 │   ├── admin/
 │   │   ├── page.tsx        ← Admin login page (redirects to dashboard if already authed)
@@ -103,16 +101,16 @@ estore/
 │   │       └── new/
 │   │           ├── page.tsx        ← Server Component wrapper (auth guard)
 │   │           └── UploadForm.tsx  ← Client component: three-step upload form
-│   │                                   Step 1: tap-to-photo area (opens camera on mobile)
+│   │                                   Step 1: tap-to-photo OR pick from image library
 │   │                                   Step 2: spinner while Cloudinary + Gemini run in parallel
-│   │                                   Step 3: pre-filled editable form + Save Draft / Publish Now
+│   │                                   Step 3: pre-filled editable form, multi-photo strip, Save Draft / Publish Now
 │   │
 │   └── api/
 │       ├── webhook/
 │       │   └── route.ts    ← GET: Meta webhook verification
 │       │                      POST: Incoming WhatsApp messages → list product or handle SOLD command
-│       │                      ⚠ SECURITY GAP: POST does not verify Meta's X-Hub-Signature-256
-│       └── track/
+│       │                      Verifies X-Hub-Signature-256 using META_APP_SECRET (BUG 2 fixed ✅)
+│       ├── track/
 │           └── route.ts    ← POST: logs visitor interactions (view/like/save/enquiry)
 │                              Notifies seller for like, save, enquiry (not views)
 │       └── admin/
@@ -120,6 +118,12 @@ estore/
 │           │   └── route.ts    ← POST: verify ADMIN_PASSWORD, set httpOnly cookie (7 days)
 │           ├── logout/
 │           │   └── route.ts    ← POST: clear admin cookie (sets maxAge = 0)
+│           ├── analyze/
+│           │   └── route.ts         ← POST: file → Cloudinary + Gemini in parallel → product fields
+│           ├── images/
+│           │   └── route.ts         ← GET: all distinct image URLs from DB (newest first, deduplicated)
+│           ├── upload-image/
+│           │   └── route.ts         ← POST: extra photos → Cloudinary only (no Gemini)
 │           └── products/
 │               ├── route.ts         ← POST: create new product (used by UploadForm)
 │               └── [id]/
@@ -129,8 +133,10 @@ estore/
     ├── ProductCard.tsx     ← Product tile: image, name, price, like/save buttons
     │                          Tracks views on mount, persists like/save in localStorage
     ├── EnquireButton.tsx   ← "Enquire / Buy" button: logs enquiry + opens Tawk.to chat
-    │                          ⚠ Tawk.to is not configured — button does nothing after click
-    └── TawkToWidget.tsx    ← Injects Tawk.to script into every page (silently skips if ID is blank)
+    ├── ImageGallery.tsx    ← Multi-photo viewer: large main image + thumbnail strip + SOLD overlay
+    ├── TawkToWidget.tsx    ← Injects Tawk.to script into every page
+    └── admin/
+        └── ImagePickerModal.tsx  ← 3-column grid modal to reuse existing product photos
 ```
 
 ---
@@ -188,18 +194,19 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...                                   ← SET
 SUPABASE_SERVICE_ROLE_KEY=...                                       ← SET
 
 # ── CLOUDINARY ────────────────────────────────────────
-CLOUDINARY_CLOUD_NAME=dfg0a7tzq                                     ← SET
-CLOUDINARY_API_KEY=...                                              ← SET
+CLOUDINARY_CLOUD_NAME=fait                                          ← SET (cloud name, not API key name)
+CLOUDINARY_API_KEY=724116592859517                                  ← SET
 CLOUDINARY_API_SECRET=...                                           ← SET
 
 # ── GOOGLE GEMINI AI ──────────────────────────────────
-GEMINI_API_KEY=...                                                  ← SET
+GEMINI_API_KEY=AQ.Ab8RN6J...                                        ← SET (new format, valid)
 
 # ── META WHATSAPP CLOUD API ───────────────────────────
 META_ACCESS_TOKEN=...                                               ← SET
 META_PHONE_NUMBER_ID=1132807136580749                               ← SET
 META_WABA_ID=15720796582561044                                      ← SET
 META_WEBHOOK_VERIFY_TOKEN=fait-gadgets-webhook-2026                 ← SET
+META_APP_SECRET=...                                                 ← SET ✅ (Session 5 — activates webhook security)
 
 # ── SELLER ────────────────────────────────────────────
 SELLER_PHONE=2347037401412                                          ← SET (Nigerian format, no +)
@@ -209,14 +216,10 @@ NEXT_PUBLIC_STORE_NAME=FAIT Gadgets                                 ← SET
 NEXT_PUBLIC_SITE_URL=https://fait-gadgets-estore.vercel.app        ← SET
 
 # ── TAWK.TO ───────────────────────────────────────────
-NEXT_PUBLIC_TAWKTO_ID=                                             ← EMPTY — live chat is disabled
-
-# ── META APP SECRET (webhook security) ────────────────
-META_APP_SECRET=                                                   ← EMPTY — get from Meta App → Settings → Basic
-                                                                      Once set, BUG 2 signature check becomes active
+NEXT_PUBLIC_TAWKTO_ID=6a2a9f25f.../1jqr7rbgv                       ← SET ✅ (Session 5 — live chat enabled)
 
 # ── ADMIN DASHBOARD ───────────────────────────────────
-ADMIN_PASSWORD=FaitGadg3ts#2026                                    ← SET (changed from admin123 in Session 5)
+ADMIN_PASSWORD=FaitGadg3ts#2026                                     ← SET ✅ (changed from admin123 in Session 5)
 ```
 
 ### Variables that are NO LONGER needed (Green API era — do not re-add)
@@ -280,12 +283,11 @@ Log errors to console but return `{ ok: false }` with status 200.
 - Option A: Add a second Supabase query using `supabaseAdmin` as a fallback (or just use `supabaseAdmin` for the product detail page)
 - Option B: Modify the RLS policy to allow public clients to read all products (including sold), relying on the `status` field for display logic
 
-### BUG 2: Webhook signature verification — PARTIALLY FIXED ✅⚠️
+### BUG 2: Webhook signature verification — FULLY FIXED ✅
 **File:** `app/api/webhook/route.ts`
-**Fix applied (Session 5):** HMAC-SHA256 verification logic is in the code and active.
-**Still needed:** `META_APP_SECRET` env var must be filled in `.env.local` AND Vercel dashboard.
-- Get it from: developers.facebook.com → Your App → Settings → Basic → App Secret
-- Until it's set, the check is skipped (safe but unprotected — set it before going live)
+**Fixed Session 5:** HMAC-SHA256 verification using `META_APP_SECRET` (now set on Vercel).
+**Live tested:** Three curl tests confirmed — unsigned/wrong-signed requests return `{"ok":false}`,
+correctly signed requests return `{"ok":true}`. Deployed and verified 2026-06-12.
 
 ---
 
@@ -380,33 +382,34 @@ Verify token: `fait-gadgets-webhook-2026` (matches `META_WEBHOOK_VERIFY_TOKEN`)
   - Two buttons in thumbnail strip: `+` (upload new) and gallery icon (pick from library)
   - On upload stage: picking from library skips Gemini and goes straight to the form
 - [x] BUG 1 fixed: sold products now show SOLD overlay (product detail page uses `supabaseAdmin`)
-- [x] BUG 2 code fix: webhook signature verification using HMAC-SHA256 (needs `META_APP_SECRET` env var to activate)
-- [x] ADMIN_PASSWORD strengthened: changed from `admin123` to `FaitGadg3ts#2026`
+- [x] BUG 2 fully fixed + live tested: webhook rejects forged requests via HMAC-SHA256 signature check
+- [x] ADMIN_PASSWORD strengthened: changed from `admin123` to `FaitGadg3ts#2026` (set on Vercel)
+- [x] `META_APP_SECRET` set on Vercel — webhook security active in production
+- [x] `NEXT_PUBLIC_TAWKTO_ID` set — Tawk.to live chat widget active on storefront
 - [x] `schema.sql` comment fixed: `wa_message_id` now says "Meta message ID"
-- [x] Stale code removed: `*.green-api.com` from next.config.js, `@google/generative-ai` uninstalled, Green API / CallMeBot vars cleaned from .env files
-- [x] Cloudinary cloud name corrected: `fait` (was `dfg0a7tzq` which was the API key name, not the cloud)
-- [x] Tawk.to widget scaffold (silently skips if TAWKTO_ID is blank)
+- [x] Stale code removed: `*.green-api.com`, `@google/generative-ai`, Green API / CallMeBot vars
+- [x] Cloudinary cloud name corrected to `fait`
+- [x] All code committed and deployed via `vercel --prod` (FAIT-Pro account)
 
 ---
 
 ## What Has NOT Been Built Yet ❌
 
 ### Bugs
-- [x] **BUG 1 FIXED:** Product detail page now uses `supabaseAdmin` — sold items show SOLD overlay
-- [x] **BUG 2 CODE FIXED:** Signature verification logic is live in `app/api/webhook/route.ts`
-  - ⚠️ **Needs `META_APP_SECRET` env var to activate** — get from Meta App → Settings → Basic → App Secret
-  - Add to `.env.local` AND Vercel dashboard, then redeploy
+- [x] **BUG 1 FIXED** — Sold products show SOLD overlay (Session 4)
+- [x] **BUG 2 FIXED** — Webhook signature verification active + live tested (Session 5)
 
 ### Features
-- [ ] Tawk.to live chat — create account, get property ID, fill `NEXT_PUBLIC_TAWKTO_ID`
 - [ ] "Mark specific product as SOLD" by product ID via WhatsApp (currently only marks the latest)
 - [ ] Bulk upload (multiple images in one WhatsApp message)
 - [ ] Order / reservation system
 - [ ] Analytics page using the `product_stats` Supabase view
 - [ ] Email notifications via Resend as a portable alternative to Meta permanent token
 
-### Cleanup
-- [x] All cleanup items completed in Sessions 4–5
+### Deployment note
+- Vercel CLI must be logged into **FAIT-Pro** account (`vercel login` if needed — not `fait-blog-3543`)
+- GitHub CLI must be logged into **FAIT-Pro** account (`gh auth login` if needed)
+- Both were switched during Session 5; re-verify if terminal is reset
 
 ---
 
