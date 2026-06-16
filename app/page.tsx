@@ -5,12 +5,15 @@
 // This makes the page load fast and appear correctly on Google.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { Suspense }    from 'react'
 import { supabase }    from '@/lib/supabase'
 import ProductCard     from '@/components/ProductCard'
+import SearchBar       from '@/components/SearchBar'
 import type { Product } from '@/lib/supabase'
 
-// Revalidate (refresh) every 60 seconds so new products appear quickly
-export const revalidate = 60
+// On-demand revalidation fires on every admin publish/edit/delete.
+// This fallback runs only if the on-demand call was missed.
+export const revalidate = 600
 
 const CATEGORIES = ['All', 'Fashion', 'Electronics', 'Food & Drinks', 'Beauty', 'Home & Living', 'Other']
 
@@ -51,16 +54,14 @@ export default async function StorePage({
             <h1 className="text-lg font-bold text-gray-900">{storeName}</h1>
             <p className="text-xs text-gray-400">{items.length} items available</p>
           </div>
-          {/* Search bar */}
-          <form method="GET" className="flex items-center gap-2">
-            <input
-              name="q"
-              defaultValue={searchQuery}
-              placeholder="Search products…"
+          {/* Live search — Suspense required for useSearchParams in App Router */}
+          <Suspense fallback={
+            <input placeholder="Search products…"
               className="text-sm border border-gray-200 rounded-lg px-3 py-1.5
-                         focus:outline-none focus:ring-2 focus:ring-brand-500 w-36 md:w-52"
-            />
-          </form>
+                         focus:outline-none w-36 md:w-52 opacity-50" disabled />
+          }>
+            <SearchBar />
+          </Suspense>
         </div>
 
         {/* ── Category filter strip ─────────────────────────────────────────── */}

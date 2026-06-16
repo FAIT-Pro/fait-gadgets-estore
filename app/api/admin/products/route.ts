@@ -9,6 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse }  from 'next/server'
+import { revalidatePath }             from 'next/cache'
 import { supabaseAdmin }              from '@/lib/supabase'
 import { isAdminAuthedFromRequest }   from '@/lib/auth'
 
@@ -51,6 +52,9 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) throw error
+
+    // Immediately refresh the storefront so the new product is visible
+    revalidatePath('/')
 
     return NextResponse.json({ ok: true, product: data })
 

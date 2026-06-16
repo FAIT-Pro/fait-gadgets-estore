@@ -9,6 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse }     from 'next/server'
+import { revalidatePath }               from 'next/cache'
 import { supabaseAdmin }                 from '@/lib/supabase'
 import { isAdminAuthedFromRequest }      from '@/lib/auth'
 
@@ -36,6 +37,9 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  revalidatePath('/')
+  revalidatePath(`/product/${params.id}`)
+
   return NextResponse.json({ ok: true, product: data })
 }
 
@@ -57,6 +61,8 @@ export async function DELETE(
     console.error('Product delete error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  revalidatePath('/')
 
   return NextResponse.json({ ok: true })
 }

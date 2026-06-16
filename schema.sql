@@ -19,6 +19,9 @@ create table if not exists products (
   updated_at    timestamptz default now()
 );
 
+-- ── 1b. MULTI-IMAGE COLUMN (migration — skip if already added) ───────────────
+alter table products add column if not exists image_urls text[] default '{}';
+
 -- ── 2. INTERACTIONS TABLE ────────────────────────────
 -- Logs every visitor action (view, like, save, enquiry)
 create table if not exists interactions (
@@ -29,7 +32,27 @@ create table if not exists interactions (
   created_at  timestamptz default now()
 );
 
--- ── 3. ROW LEVEL SECURITY ────────────────────────────
+-- ── 3. ENQUIRIES TABLE ───────────────────────────────
+-- Stores "Request to Buy" submissions from visitors
+-- Run in Supabase SQL Editor if this table doesn't exist yet
+create table if not exists enquiries (
+  id           uuid        primary key default gen_random_uuid(),
+  product_id   uuid        references products(id) on delete cascade,
+  product_name text        not null,
+  buyer_name   text        not null,
+  buyer_phone  text        not null,
+  message      text,
+  created_at   timestamptz default now()
+);
+
+alter table enquiries enable row level security;
+
+-- Anyone can submit an enquiry
+create policy "Public can submit enquiries"
+  on enquiries for insert
+  with check (true);
+
+-- ── 4. ROW LEVEL SECURITY ────────────────────────────
 -- Controls who can read/write each table
 
 alter table products     enable row level security;
@@ -45,7 +68,7 @@ create policy "Public can log interactions"
   on interactions for insert
   with check (true);
 
--- ── 4. HELPER FUNCTIONS ──────────────────────────────
+-- ── 5. HELPER FUNCTIONS ──────────────────────────────
 
 -- Auto-update the updated_at timestamp when a product changes
 create or replace function update_updated_at()
@@ -60,7 +83,7 @@ create trigger products_updated_at
   before update on products
   for each row execute function update_updated_at();
 
--- ── 5. QUICK-VIEW: PRODUCT STATS ─────────────────────
+-- ── 6. QUICK-VIEW: PRODUCT STATS ─────────────────────
 -- A view that joins products with interaction counts
 -- Use this in your dashboard later: select * from product_stats;
 create or replace view product_stats as

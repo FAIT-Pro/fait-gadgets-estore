@@ -11,7 +11,7 @@ import ImageGallery       from '@/components/ImageGallery'
 import type { Metadata }  from 'next'
 import type { Product }   from '@/lib/supabase'
 
-export const revalidate = 60
+export const revalidate = 600
 
 export async function generateMetadata({
   params,
@@ -109,7 +109,11 @@ export default async function ProductPage({
 
           <div className="flex gap-3">
             {p.status === 'available' ? (
-              <EnquireButton productId={p.id} productName={p.name} />
+              <EnquireButton
+                productId={p.id}
+                productName={p.name}
+                formattedPrice={formattedPrice}
+              />
             ) : (
               <div className="flex-1 text-center py-3 bg-gray-100 rounded-xl text-gray-400 font-medium">
                 This item has been sold

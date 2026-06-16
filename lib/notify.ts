@@ -23,7 +23,7 @@ export async function notifySeller(message: string): Promise<void> {
   }
 
   try {
-    await fetch(
+    const res = await fetch(
       `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`,
       {
         method:  'POST',
@@ -39,9 +39,12 @@ export async function notifySeller(message: string): Promise<void> {
         }),
       }
     )
+    if (!res.ok) {
+      const body = await res.text()
+      console.error(`Meta notification failed [${res.status}]:`, body)
+    }
   } catch (err) {
-    // Notifications failing should never crash the main product listing flow
-    console.error('Meta notification failed:', err)
+    console.error('Meta notification network error:', err)
   }
 }
 
