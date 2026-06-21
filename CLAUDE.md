@@ -3,7 +3,7 @@
 This file tells Claude Code everything it needs to know about this project.
 Read this fully before making any changes.
 
-**Last verified:** 2026-06-19 (Session 6 — complete)
+**Last verified:** 2026-06-19 (Session 6 — complete + deployed to production)
 
 ---
 

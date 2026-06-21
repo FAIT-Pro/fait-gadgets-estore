@@ -4521,6 +4521,112 @@ git push</code></pre>
   </div>
 </div>
 
+
+<!-- ── Session 6b: Deployment ─────────────────────────────────── -->
+<div style="margin-top:32px;">
+  <div class="turn user">
+    <div class="label">Felix</div>
+    <div class="bubble">I have updated the enquiries on supabase. Is left. You can verify what I have done</div>
+  </div>
+  <div class="turn assistant">
+    <div class="label">Claude</div>
+    <div class="bubble">
+      <p>Verified using Supabase REST API with service role key:</p>
+      <pre><code># Check all columns exist
+curl -s "https://nbijqijxqjattrquzocb.supabase.co/rest/v1/enquiries?select=id,product_id,product_name,buyer_name,buyer_phone,message,created_at&limit=0" \
+  -H "apikey: [SERVICE_ROLE_KEY]" -H "Authorization: Bearer [SERVICE_ROLE_KEY]"
+# → [] ✅ (empty array — table exists, no rows yet)
+
+# Test service role insert
+curl -s -X POST ".../rest/v1/enquiries" -H "..." \
+  -d '{"product_name":"Test Product","buyer_name":"Test Buyer","buyer_phone":"08000000000"}'
+# → [{"id":"ffcf468b...","product_name":"Test Product","buyer_name":"Test Buyer",...}] ✅
+
+# Delete test row
+curl -s -X DELETE ".../rest/v1/enquiries?buyer_name=eq.Test%20Buyer" -H "..."
+# → deleted ✅</code></pre>
+      <p><strong>Table verified:</strong> all 7 columns correct, service role inserts work. App uses service role in <code>/api/enquire</code> route so RLS policy on anon key does not affect functionality.</p>
+      <p><strong>RLS note:</strong> The anon-key insert policy did not activate (policy not applied to anon role). Optional fix:</p>
+      <pre><code>drop policy if exists "Public can submit enquiries" on enquiries;
+create policy "Public can submit enquiries" on enquiries for insert with check (true);</code></pre>
+      <p>Not required — app works correctly without it.</p>
+    </div>
+  </div>
+
+  <div class="turn user">
+    <div class="label">Felix</div>
+    <div class="bubble">What do I title it? [referring to Supabase SQL query name]</div>
+  </div>
+  <div class="turn assistant">
+    <div class="label">Claude</div>
+    <div class="bubble"><code>fix: enquiries RLS policy — allow anon insert</code></div>
+  </div>
+
+  <div class="turn user">
+    <div class="label">Felix</div>
+    <div class="bubble">Created and ran successfully. Please verify and what's next?</div>
+  </div>
+  <div class="turn assistant">
+    <div class="label">Claude</div>
+    <div class="bubble">
+      <p>Tested anon key insert again — still returning 42501. Policy did not take effect. However, this does not affect the app — <code>/api/enquire</code> uses <code>supabaseAdmin</code> (service role) which bypasses RLS entirely.</p>
+      <p><strong>Table is fully working for the app. ✅</strong></p>
+      <p>Next step — deploy:</p>
+      <pre><code>vercel --prod</code></pre>
+    </div>
+  </div>
+
+  <div class="turn user">
+    <div class="label">Felix</div>
+    <div class="bubble">vercel --prod on terminal?</div>
+  </div>
+  <div class="turn assistant">
+    <div class="label">Claude</div>
+    <div class="bubble">
+      <p>Yes. In your terminal, make sure you're in the project folder first:</p>
+      <pre><code>cd /Users/felixokon/Documents/WEBSITE_AI_Generated_Xai/WhatsApp-estore
+vercel --prod</code></pre>
+      <p>If it asks which project to link, select <code>fait-gadgets-estore</code>. If it asks for login, run <code>vercel login</code> first and authenticate as FAIT-Pro.</p>
+    </div>
+  </div>
+
+  <div class="turn user">
+    <div class="label">Felix</div>
+    <div class="bubble">It has been completed on the terminal. Verify and if nothing else, update documents</div>
+  </div>
+  <div class="turn assistant">
+    <div class="label">Claude</div>
+    <div class="bubble">
+      <pre><code>curl -s -o /dev/null -w "%{http_code}" https://fait-gadgets-estore.vercel.app
+# → 200 ✅
+
+curl -s -o /dev/null -w "%{http_code}" https://fait-gadgets-estore.vercel.app/admin
+# → 200 ✅
+
+curl -s -X POST https://fait-gadgets-estore.vercel.app/api/enquire \
+  -H "Content-Type: application/json" -d '{}'
+# → 400 ✅ (correct — empty body rejected, validation working)</code></pre>
+
+      <p>All live and responding correctly. Updated all three documents and committed.</p>
+    </div>
+  </div>
+
+  <div style="margin-top:24px; padding:16px; background:#0a2510; border-left:4px solid #25D366; border-radius:6px; color:#b3ffcc;">
+    <p><strong>Session 6 fully complete — all features live in production</strong></p>
+    <ul>
+      <li>Live search — 300ms debounce, no page reload ✅</li>
+      <li>Request to Buy modal — buyer contact captured, stored in Supabase ✅</li>
+      <li>Dedicated product edit page at /admin/products/[id]/edit ✅</li>
+      <li>On-demand revalidation — storefront updates immediately on publish ✅</li>
+      <li>Notification failure logging in notify.ts ✅</li>
+      <li>Snapshot branch snapshot-v5-session5-complete pushed ✅</li>
+      <li>enquiries table created in Supabase ✅</li>
+      <li>Deployed: https://fait-gadgets-estore.vercel.app ✅</li>
+    </ul>
+    <p><strong>Next session:</strong> Build the Telegram bot (Channel C) — replaces Meta as listing webhook and seller notification channel.</p>
+  </div>
+</div>
+
 <hr />
 <div style="color:#666; font-size:0.78rem; text-align:center; padding-top:16px; border-top:1px solid #222; margin-top:24px;">
   Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 19 June 2026<br/>
