@@ -375,3 +375,282 @@ All known bugs fixed. All env vars set. All code committed, pushed, and live.
 ---
 
 _Log updated after each significant action._
+
+
+---
+
+---
+
+## Session 6 — 2026-06-16 / 2026-06-19
+
+### Context
+Full project review was conducted. Six issues were identified from the review and implemented in the same session. A snapshot branch was created before starting. Documents updated 2026-06-19.
+
+### Review Conducted — Project State at Session Start
+
+A full audit of the project was run. Findings:
+
+**Working correctly:**
+- Gemini 2.5 Flash REST integration (no SDK, structured JSON, graceful fallback)
+- Cloudinary upload pipeline (base64 dataUri, permanent CDN URLs)
+- Supabase integration (public client for storefront, supabaseAdmin for all write paths)
+- 3-stage admin upload UX (photo → analyzing → form)
+- Multi-image support (up to 6 photos), image library picker
+- Dashboard tabs (Live/Drafts/Sold) with per-status action buttons
+- HMAC-SHA256 webhook signature verification (live tested, BUG 2 fully fixed)
+- Admin password strengthened, httpOnly cookie auth
+- Product lifecycle (Draft → Publish → Unpublish → Mark Sold → Re-list)
+- BUG 1 fixed: sold products show SOLD overlay
+
+**Issues identified:**
+1. WhatsApp auto-listing blocked — Meta Business verification rejected
+2. No purchase/order flow — "Enquire / Buy" only opens Tawk.to chat, no buyer contact captured
+3. Notifications unreliable — `notify.ts` swallowed errors silently, no logging on failure
+4. Meta Access Token risk — likely a temporary token, will expire and break notifications silently
+5. No dedicated product edit page — editing was inline in dashboard row, cramped on mobile
+6. Search was non-realtime — `<form method="GET">` caused full page reload on submit
+7. `revalidate = 60` — new products took up to 60s to appear on storefront after admin publish
+
+### User Decisions
+
+| Issue | Decision |
+|---|---|
+| #1 WhatsApp blocked | Route via Telegram bot (WhatsApp stays customer-facing) |
+| #2 No purchase flow | Add Request to Buy modal |
+| #3 Notifications unreliable | Fix — add failure logging |
+| #4 Meta token expiry | Forget Meta, plan full Telegram replacement (Session 7) |
+| #5 No edit page | Add dedicated edit page |
+| #6 Search non-realtime | Fix — live search |
+| #7 revalidate = 60 | Fix — on-demand revalidation |
+| Snapshot | Create fork/snapshot branch before any changes |
+
+### Snapshot Branch Created
+
+```bash
+git checkout -b snapshot-v5-session5-complete
+git push origin snapshot-v5-session5-complete
+git checkout main
+# Note: push initially failed — GitHub CLI was on FAIT-Blog account
+# Fixed with: gh auth switch --user FAIT-Pro
+# Snapshot branch pushed successfully after account switch
+```
+
+Branch `snapshot-v5-session5-complete` is the exact state of the project at the end of Session 5, before any Session 6 changes. Safe to return to at any time.
+
+### What Was Built This Session
+
+#### Fix #3 — Notification failure logging
+
+**File:** `lib/notify.ts`
+
+Before:
+```typescript
+await fetch(...)
+// errors silently swallowed
+```
+
+After:
+```typescript
+const res = await fetch(...)
+if (!res.ok) {
+  const body = await res.text()
+  console.error(`Meta notification failed [${res.status}]:`, body)
+}
+```
+
+Now failures are visible in Vercel function logs. When Meta returns 4xx or 5xx (expired token, wrong phone format, rate limit), the status code and response body are logged.
+
+#### Fix #7 — On-demand revalidation
+
+**Files:** `app/api/admin/products/route.ts`, `app/api/admin/products/[id]/route.ts`, `app/page.tsx`, `app/product/[id]/page.tsx`
+
+Added `import { revalidatePath } from 'next/cache'` to both API routes.
+
+In `POST /api/admin/products` (create):
+```typescript
+revalidatePath('/')
+```
+
+In `PATCH /api/admin/products/[id]` (edit):
+```typescript
+revalidatePath('/')
+revalidatePath(`/product/${params.id}`)
+```
+
+In `DELETE /api/admin/products/[id]`:
+```typescript
+revalidatePath('/')
+```
+
+Changed `revalidate = 60` to `revalidate = 600` on both `app/page.tsx` and `app/product/[id]/page.tsx`. The 600s value is now just a fallback — on-demand revalidation fires immediately on every admin action so the storefront updates instantly.
+
+#### Fix #6 — Live search
+
+**New file:** `components/SearchBar.tsx`
+
+Client component using `useSearchParams`, `useRouter`, `usePathname`, `useTransition`:
+- 300ms debounce via `useRef<ReturnType<typeof setTimeout>>`
+- Pushes `?q=value` to URL on every keystroke (debounced)
+- `useTransition` powers a small spinner icon in the input while the server re-renders
+- `defaultValue={searchParams.get('q') ?? ''}` preserves the current search term on page load
+
+Wrapped in `<Suspense>` in `app/page.tsx` (required by Next.js — `useSearchParams` cannot be used outside Suspense in App Router). Fallback shows a disabled placeholder input while hydrating.
+
+Removed the old `<form method="GET">` search form.
+
+#### Add #2 — Request to Buy modal + enquiries table
+
+**New files:**
+- `components/BuyRequestModal.tsx` — bottom-sheet modal (slides up on mobile, centered on desktop)
+- `app/api/enquire/route.ts` — POST handler, auth-free (public endpoint)
+
+**Schema change — new `enquiries` table:**
+```sql
+create table if not exists enquiries (
+  id           uuid        primary key default gen_random_uuid(),
+  product_id   uuid        references products(id) on delete cascade,
+  product_name text        not null,
+  buyer_name   text        not null,
+  buyer_phone  text        not null,
+  message      text,
+  created_at   timestamptz default now()
+);
+alter table enquiries enable row level security;
+create policy "Public can submit enquiries" on enquiries for insert with check (true);
+```
+
+**Important:** This SQL must be run in Supabase → SQL Editor before the modal will work. The `schema.sql` file has been updated with this table.
+
+**BuyRequestModal.tsx features:**
+- Closes on Escape key or backdrop click
+- Body scroll locked while open
+- Fields: Your name (required), WhatsApp/phone number (required), Message (optional)
+- Price reminder shown at top of form (passed in as prop)
+- Submit → POST /api/enquire → success state shown in modal
+- Error display for network failures
+
+**`/api/enquire` route:**
+```typescript
+// Saves to enquiries table
+await supabaseAdmin.from('enquiries').insert({ product_id, product_name, buyer_name, buyer_phone, message })
+
+// Also logs in interactions for product_stats view
+await supabaseAdmin.from('interactions').insert({ product_id, type: 'enquiry' })
+
+// Notifies seller with full buyer contact details
+await notifySeller(
+  `🛒 New buy request!\n\n📦 ${productName}\n👤 ${buyerName}\n📱 ${buyerPhone}` + msgText
+)
+```
+
+**Updated `components/EnquireButton.tsx`:**
+Now renders two buttons side by side:
+- Primary: "Request to Buy" → opens BuyRequestModal
+- Secondary: chat icon → opens Tawk.to (for general questions)
+
+Added `formattedPrice` prop (passed from product page) so the modal can show the price reminder.
+Updated `app/product/[id]/page.tsx` to pass `formattedPrice` to EnquireButton.
+
+#### Add #5 — Dedicated product edit page
+
+**New files:**
+- `app/admin/products/[id]/edit/page.tsx` — Server Component: auth guard + fetch product by ID
+- `app/admin/products/[id]/edit/EditForm.tsx` — Client component: full-page product editor
+
+**EditForm.tsx features:**
+- All fields editable: name, price + currency toggle (NGN/USD), category, description
+- Full photo management: thumbnail strip, selected highlight, remove photos, upload new photos, pick from image library
+- `Save as Draft` / `Publish` buttons → PATCH /api/admin/products/[id]
+- Cancel button → back to /admin/dashboard
+- `character count` on description field
+- Same photo management as UploadForm (ImagePickerModal integrated)
+
+**Updated `app/admin/dashboard/ProductActions.tsx`:**
+- Edit button changed from `<button onClick={() => setEditing(true)}>` to `<a href="/admin/products/${product.id}/edit">`
+- All inline edit form code removed (dead code cleanup — ~200 lines removed)
+- Inline edit form state removed: `editing`, `name`, `price`, `category`, `description`, `editImages`, `addingPhoto`, `showPicker`
+- File went from ~395 lines to ~145 lines
+- Status transition buttons (Publish/Unpublish/Mark Sold/Re-list) still work in-place via PATCH
+
+### TypeScript
+```bash
+npx tsc --noEmit
+# → 0 errors ✅
+```
+
+### Build
+```bash
+npm run build
+# ✓ Compiled successfully
+# 16 routes — all λ (dynamic server-rendered)
+# New routes confirmed:
+#   λ /admin/products/[id]/edit    3.79 kB    93.1 kB
+#   λ /api/enquire                 0 B             0 B
+# No warnings. Only pre-existing metadataBase notice.
+```
+
+### Commit and Push
+
+```bash
+git add [all new and modified files]
+git commit -m "feat: Session 6 — live search, buy request modal, edit page, revalidation fixes"
+# → [main 904cb1a] 13 files changed, 872 insertions(+), 383 deletions(-)
+
+gh auth switch --user FAIT-Pro
+git push
+# → ea984cc..904cb1a  main -> main ✅
+
+git push origin snapshot-v5-session5-complete
+# → * [new branch] snapshot-v5-session5-complete ✅
+```
+
+### WhatsApp → Telegram Architecture (decided this session, built in Session 7)
+
+**The problem:** Meta Business verification was rejected. WhatsApp bot is blocked.
+
+**The solution — split the roles:**
+
+| Channel | Role |
+|---|---|
+| WhatsApp | Customer-facing: buyers enquire, browse, get support |
+| Telegram bot | Seller tool: forward product photos here to list them |
+| Admin upload | Backup: always works, no external dependencies |
+
+**How the Telegram flow works:**
+1. Seller opens Telegram, sends photo to the bot (same as forwarding in WhatsApp)
+2. Bot downloads the image (Telegram provides `file_id` → `file_path` → direct download — simpler than Meta's 3-step flow)
+3. Same Gemini + Cloudinary + Supabase pipeline
+4. Seller receives confirmation in the same Telegram conversation
+5. Customers see the store on the web, use "Request to Buy" form or Tawk.to chat
+
+**What changes in code for Session 7:**
+- `app/api/telegram/route.ts` — new webhook handler for Telegram updates
+- `lib/telegram.ts` — `sendTelegramMessage(chatId, text)` replaces `notifySeller()`
+- New env vars: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+- Meta env vars can be removed once Telegram is live
+
+**Why Telegram is simpler than Meta:**
+- Meta: mediaId → exchange for download URL (Graph API call) → download with Bearer auth → upload to Cloudinary
+- Telegram: fileId → getFile (one API call, returns file_path) → direct download → upload to Cloudinary
+- No business verification. No token expiry. Free forever.
+
+### Final State After Session 6
+
+| Item | Status |
+|---|---|
+| Snapshot branch | ✅ `snapshot-v5-session5-complete` pushed |
+| Live search | ✅ 300ms debounce, spinner, no page reload |
+| Request to Buy modal | ✅ Built — requires Supabase `enquiries` table SQL to be run |
+| Dedicated edit page | ✅ `/admin/products/[id]/edit` |
+| On-demand revalidation | ✅ Fires immediately on every admin action |
+| Notification logging | ✅ HTTP status + body logged on Meta API failure |
+| Dashboard simplified | ✅ Inline edit form removed, Edit links to edit page |
+| TypeScript | ✅ 0 errors |
+| Build | ✅ Clean, 16 routes |
+| Code committed + pushed | ✅ `904cb1a` on main |
+| GitHub account | ✅ FAIT-Pro (must re-run `gh auth switch --user FAIT-Pro` each terminal session) |
+
+**One pending action:** Run the `enquiries` table SQL in Supabase → SQL Editor before deploying.
+Then deploy: `vercel --prod`
+
+**Next session:** Build the Telegram bot (Channel C) to replace Meta as both the listing webhook and seller notification channel.

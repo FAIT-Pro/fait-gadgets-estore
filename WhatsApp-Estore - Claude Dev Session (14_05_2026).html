@@ -4115,7 +4115,7 @@ curl -s -X POST https://fait-gadgets-estore.vercel.app/api/webhook \
     <div class="label">Felix</div>
     <div class="bubble">Correct these on the HTML log:
 Session 4 summary and Session 5 final summary boxes are white, making it difficult to see the text.
-The footer text colour does not make it readable: Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 12 June 2026 ...</div>
+The footer text colour does not make it readable: Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 19 June 2026 ...</div>
   </div>
   <div class="turn assistant">
     <div class="label">Claude</div>
@@ -4136,9 +4136,394 @@ git push
 
 <!-- ═══════════════════════════════════════════════════════════════ -->
 
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SESSION 6 — 16–19 June 2026 -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div style="margin-top:48px;">
+  <div style="border-bottom:1px solid #222; padding-bottom:16px; margin-bottom:32px;">
+    <h2 style="color:#25D366; font-size:1.1rem; margin-bottom:4px;">Session 6 — 16–19 June 2026</h2>
+    <p style="color:#555; font-size:0.82rem;">Project review + 6 fixes + snapshot branch + Telegram architecture plan</p>
+  </div>
+
+  <!-- ── Exchange 1: Project review request ─────────────────────── -->
+  <div class="turn user">
+    <div class="label">Felix</div>
+    <div class="bubble">Review this project and tell me what's about, what's working, what's not working, what's pending, what you would do differently and should change and can be added.</div>
+  </div>
+  <div class="turn assistant">
+    <div class="label">Claude</div>
+    <div class="bubble">
+      <p>Read all source files, package.json, SESSION_LOG.md, CLAUDE.md, and key API routes before writing the review.</p>
+
+      <h3>FAIT Gadgets WhatsApp E-Store — Project Review</h3>
+
+      <h4>What This Is</h4>
+      <p>A mobile-first e-commerce storefront for a Nigerian seller to list and sell products. The seller takes a photo, uploads it (or forwards via WhatsApp), and Gemini AI auto-fills the product name, price, category, and description. Buyers browse the store, enquire via live chat, and interact (like/save/enquire).</p>
+      <p>Two input channels: Admin upload (primary, always works) and WhatsApp bot (secondary, blocked by Meta verification rejection).</p>
+
+      <h4>What's Working Well</h4>
+      <ul>
+        <li>Gemini 2.5 Flash REST integration — no SDK bloat, structured JSON output with graceful fallback</li>
+        <li>Cloudinary upload — base64 dataUri avoids re-downloading Meta images, CDN URLs are permanent</li>
+        <li>Supabase integration — public client (RLS-filtered) for storefront, supabaseAdmin for all write paths</li>
+        <li>3-stage upload UX (photo → analyzing → form) — smooth and mobile-friendly</li>
+        <li>Multi-image support (up to 6 photos) with thumbnail strip, main preview, add/remove</li>
+        <li>Image library picker — clever reuse of existing photos without re-upload</li>
+        <li>Dashboard tabs (Live/Drafts/Sold) with per-status action buttons</li>
+        <li>HMAC-SHA256 webhook signature verification live-tested and confirmed</li>
+        <li>BUG 1 fixed: sold products show SOLD overlay (supabaseAdmin on product detail page)</li>
+        <li>BUG 2 fixed: webhook rejects forged requests</li>
+        <li>All bugs resolved — no remaining known bugs</li>
+      </ul>
+
+      <h4>What's Not Working / Active Issues</h4>
+      <p><strong>Issue 1:</strong> WhatsApp auto-listing is blocked — Meta Business verification was rejected.</p>
+      <p><strong>Issue 2:</strong> No purchase/order flow — "Enquire / Buy" only opens Tawk.to chat. No buyer contact info captured.</p>
+      <p><strong>Issue 3:</strong> Notifications unreliable — <code>notify.ts</code> never checked <code>res.ok</code>. Failed notifications were silently dropped with no logging.</p>
+      <p><strong>Issue 4:</strong> Meta Access Token is likely temporary (60-day expiry). When it expires, notifications and the webhook break silently.</p>
+      <p><strong>Issue 5:</strong> No dedicated product edit page — editing was inline in the dashboard row, cramped on mobile.</p>
+      <p><strong>Issue 6:</strong> Search is non-realtime — <code>&lt;form method="GET"&gt;</code> causes a full page reload on every submit.</p>
+      <p><strong>Issue 7:</strong> <code>revalidate = 60</code> — new products take up to 60 seconds to appear after admin publish.</p>
+
+      <h4>What's Pending</h4>
+      <table>
+        <tr><th>Priority</th><th>Feature</th></tr>
+        <tr><td>P1</td><td>Payment / checkout</td></tr>
+        <tr><td>P1</td><td>Resolve Meta Business verification (or replace with Telegram)</td></tr>
+        <tr><td>P2</td><td>Mark specific product SOLD via WhatsApp/Telegram command</td></tr>
+        <tr><td>P2</td><td>Email notifications via Resend</td></tr>
+        <tr><td>P3</td><td>Analytics page (product_stats view already exists)</td></tr>
+        <tr><td>P3</td><td>Bulk upload</td></tr>
+      </table>
+
+      <h4>What I Would Do Differently</h4>
+      <ul>
+        <li><strong>Payment in scope from Day 1</strong> — the Enquire button creates friction. Even a basic "Request to Buy" form closing the contact loop would increase conversions.</li>
+        <li><strong>WhatsApp channel dependency was a design risk</strong> — Meta verification can take weeks and be rejected. Admin upload first, WhatsApp enhancement second would have been safer.</li>
+        <li><strong>Gemini prompt improvement</strong> — "max 6 words" truncates useful product names. Nigerian marketplace listings often need longer names.</li>
+        <li><strong>Notification response never checked</strong> — one line to read res.ok would have made failures visible from day one.</li>
+        <li><strong>No price validation</strong> — the upload form accepts any string in the price field.</li>
+      </ul>
+
+      <h4>What Should Change Now</h4>
+      <ol>
+        <li>Fix the Meta token risk — generate a permanent System User token, or plan Telegram replacement</li>
+        <li>Add notification response logging in notify.ts</li>
+        <li>Lower revalidate or use on-demand revalidation</li>
+        <li>Price validation in UploadForm</li>
+        <li>Reliable seller notifications on enquiry</li>
+      </ol>
+
+      <h4>What Can Be Added (High Value)</h4>
+      <ul>
+        <li><strong>"Request to Buy" form</strong> — modal on product page, captures name + phone, stores in Supabase, notifies seller with contact details</li>
+        <li><strong>Seller analytics dashboard</strong> — product_stats Supabase view already exists, just needs a UI</li>
+        <li><strong>WhatsApp share button</strong> — turns buyers into free marketing</li>
+        <li><strong>Paystack integration</strong> — Nigerian payment gateway, same as BFX project</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ── Exchange 2: User decisions on each issue ───────────────── -->
+  <div class="turn user">
+    <div class="label">Felix</div>
+    <div class="bubble">Response to number:
+1. Route WhatsApp message to Telegram to submit details on the site or anything similar that you can think of. But WhatsApp stays the center point for the user. Think of something possible even if it's not done yet.
+2. Add it
+3. Work on it
+4. Forget META related stuffs, we might remove it and replace it with Telegram
+5. Since the feature can be added, let add it
+6. Work on that
+7. It should be fixed
+We will have to create a fork moving forward so we have this version separate and can always come back to it in the future.</div>
+  </div>
+  <div class="turn assistant">
+    <div class="label">Claude</div>
+    <div class="bubble">
+      <p>First, creating the snapshot branch before touching anything:</p>
+      <pre><code>git checkout -b snapshot-v5-session5-complete
+git push origin snapshot-v5-session5-complete
+git checkout main
+# Note: push failed — GitHub CLI on wrong account (FAIT-Blog)
+# Fixed: gh auth switch --user FAIT-Pro
+# Re-ran push → * [new branch] snapshot-v5-session5-complete ✅</code></pre>
+
+      <h4>Fix #3 — Notification failure logging (lib/notify.ts)</h4>
+      <p>Before: <code>await fetch(...)</code> — response never checked, errors silently swallowed.</p>
+      <pre><code>// After:
+const res = await fetch(
+  `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`,
+  { method: 'POST', headers: { ... }, body: JSON.stringify({ ... }) }
+)
+if (!res.ok) {
+  const body = await res.text()
+  console.error(`Meta notification failed [${res.status}]:`, body)
+}</code></pre>
+      <p>Now failures are visible in Vercel function logs with HTTP status code and response body.</p>
+
+      <h4>Fix #7 — On-demand revalidation</h4>
+      <p>Added <code>import { revalidatePath } from 'next/cache'</code> to both admin product routes.</p>
+      <pre><code>// app/api/admin/products/route.ts (POST — create)
+revalidatePath('/')
+
+// app/api/admin/products/[id]/route.ts (PATCH — edit)
+revalidatePath('/')
+revalidatePath(`/product/${params.id}`)
+
+// app/api/admin/products/[id]/route.ts (DELETE)
+revalidatePath('/')</code></pre>
+      <p>Changed <code>revalidate = 60</code> → <code>revalidate = 600</code> on storefront and product detail pages. On-demand fires immediately; 600s is now just a safety fallback.</p>
+
+      <h4>Fix #6 — Live search (components/SearchBar.tsx)</h4>
+      <pre><code>'use client'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import { useTransition, useCallback, useRef } from 'react'
+
+export default function SearchBar() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const [isPending, startTransition] = useTransition()
+  const timerRef = useRef&lt;ReturnType&lt;typeof setTimeout&gt; | null&gt;(null)
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent&lt;HTMLInputElement&gt;) => {
+      const value = e.target.value
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => {
+        const params = new URLSearchParams(searchParams.toString())
+        if (value) { params.set('q', value) } else { params.delete('q') }
+        startTransition(() => { router.push(`${pathname}?${params.toString()}`) })
+      }, 300)
+    },
+    [searchParams, router, pathname]
+  )
+
+  return (
+    &lt;div className="relative flex items-center"&gt;
+      &lt;input type="search" defaultValue={searchParams.get('q') ?? ''} onChange={handleChange}
+        placeholder="Search products…" className="..." /&gt;
+      {isPending &amp;&amp; &lt;div className="absolute right-2.5 w-3.5 h-3.5 border-2 border-brand-400
+        border-t-transparent rounded-full animate-spin" /&gt;}
+    &lt;/div&gt;
+  )
+}</code></pre>
+      <p>Wrapped in <code>&lt;Suspense&gt;</code> in app/page.tsx (required — <code>useSearchParams</code> cannot be used outside Suspense in Next.js App Router).</p>
+      <pre><code>&lt;Suspense fallback={&lt;input placeholder="Search products…" disabled className="... opacity-50" /&gt;}&gt;
+  &lt;SearchBar /&gt;
+&lt;/Suspense&gt;</code></pre>
+
+      <h4>Add #2 — Request to Buy modal + API + schema</h4>
+      <p><strong>New Supabase table</strong> — must be run in Supabase SQL Editor:</p>
+      <pre><code>create table if not exists enquiries (
+  id           uuid        primary key default gen_random_uuid(),
+  product_id   uuid        references products(id) on delete cascade,
+  product_name text        not null,
+  buyer_name   text        not null,
+  buyer_phone  text        not null,
+  message      text,
+  created_at   timestamptz default now()
+);
+alter table enquiries enable row level security;
+create policy "Public can submit enquiries" on enquiries for insert with check (true);</code></pre>
+
+      <p><strong>New file: app/api/enquire/route.ts</strong></p>
+      <pre><code>export async function POST(request: NextRequest) {
+  const { productId, productName, buyerName, buyerPhone, message } = await request.json()
+
+  // Save buyer contact details
+  await supabaseAdmin.from('enquiries').insert({
+    product_id: productId || null,
+    product_name: productName,
+    buyer_name: buyerName.trim(),
+    buyer_phone: buyerPhone.trim(),
+    message: message?.trim() || null,
+  })
+
+  // Log in interactions (for product_stats view)
+  if (productId) {
+    await supabaseAdmin.from('interactions').insert({ product_id: productId, type: 'enquiry' })
+  }
+
+  // Notify seller with full buyer details
+  await notifySeller(
+    `🛒 New buy request!\n\n📦 ${productName}\n👤 ${buyerName}\n📱 ${buyerPhone}` + msgText
+  )
+
+  return NextResponse.json({ ok: true })
+}</code></pre>
+
+      <p><strong>New file: components/BuyRequestModal.tsx</strong> — bottom-sheet modal that slides up on mobile, centered on desktop. Features:</p>
+      <ul>
+        <li>Closes on Escape key or backdrop click</li>
+        <li>Body scroll locked while open</li>
+        <li>Price reminder shown at top</li>
+        <li>Fields: name (required), phone (required), message (optional)</li>
+        <li>Success confirmation state after submit</li>
+        <li>Error display for network failures</li>
+      </ul>
+
+      <p><strong>Updated: components/EnquireButton.tsx</strong> — now renders two buttons:</p>
+      <pre><code>// Primary: opens BuyRequestModal
+&lt;button onClick={() => setShowModal(true)} className="flex-1 btn-primary ..."&gt;
+  Request to Buy
+&lt;/button&gt;
+
+// Secondary: opens Tawk.to for quick questions
+&lt;button onClick={() => window.Tawk_API?.maximize()} title="Chat with us" className="px-4 ..."&gt;
+  &lt;svg ...chat icon.../&gt;
+&lt;/button&gt;
+
+{showModal &amp;&amp; (
+  &lt;BuyRequestModal productId={productId} productName={productName}
+    price={formattedPrice} onClose={() => setShowModal(false)} /&gt;
+)}</code></pre>
+
+      <p>Added <code>formattedPrice</code> prop. Updated <code>app/product/[id]/page.tsx</code> to pass it.</p>
+
+      <h4>Add #5 — Dedicated product edit page</h4>
+      <p><strong>New files:</strong> <code>app/admin/products/[id]/edit/page.tsx</code> + <code>EditForm.tsx</code></p>
+
+      <p><strong>page.tsx</strong> — Server Component: auth guard + fetch product by ID:</p>
+      <pre><code>export default async function EditProductPage({ params }) {
+  if (!isAdminAuthed()) redirect('/admin')
+  const { data } = await supabaseAdmin.from('products').select('*').eq('id', params.id).single()
+  if (!data) notFound()
+  return (
+    &lt;div className="min-h-screen bg-gray-50"&gt;
+      &lt;!-- back link header --&gt;
+      &lt;EditForm product={data as Product} /&gt;
+    &lt;/div&gt;
+  )
+}</code></pre>
+
+      <p><strong>EditForm.tsx</strong> — Client component with full field editing: name, price + currency toggle, category, description, multi-photo management (add/remove/library picker), Save as Draft / Publish buttons. Calls <code>PATCH /api/admin/products/[id]</code> on save, redirects to dashboard on success.</p>
+
+      <p><strong>Updated: app/admin/dashboard/ProductActions.tsx</strong></p>
+      <p>Edit button changed from inline expand to link:</p>
+      <pre><code>// Before:
+&lt;button onClick={() => setEditing(true)}&gt;Edit&lt;/button&gt;
+
+// After:
+&lt;a href={`/admin/products/${product.id}/edit`}&gt;Edit&lt;/a&gt;</code></pre>
+      <p>All inline edit form code removed (~200 lines of dead code). File reduced from ~395 lines to ~145 lines. Status transition buttons (Publish/Unpublish/Mark Sold/Re-list) still work in-place.</p>
+
+      <h4>WhatsApp → Telegram Architecture (#1 and #4)</h4>
+      <p>Since Meta verification was rejected and the token may expire, the plan for Session 7 is to replace Meta entirely with a Telegram bot.</p>
+
+      <p><strong>Role split:</strong></p>
+      <table>
+        <tr><th>Channel</th><th>Role</th></tr>
+        <tr><td>WhatsApp</td><td>Customer-facing: buyers enquire, browse, get support</td></tr>
+        <tr><td>Telegram bot</td><td>Seller tool: forward product photos here to list them</td></tr>
+        <tr><td>Admin upload</td><td>Backup: always works, no dependencies</td></tr>
+      </table>
+
+      <p><strong>Why Telegram is simpler than Meta:</strong></p>
+      <table>
+        <tr><th>Step</th><th>Meta</th><th>Telegram</th></tr>
+        <tr><td>Get image</td><td>mediaId → Graph API call → download URL → download with Bearer auth</td><td>fileId → getFile (one call) → direct download</td></tr>
+        <tr><td>Verification</td><td>Business approval required (rejected)</td><td>None — @BotFather, instant</td></tr>
+        <tr><td>Token expiry</td><td>Temporary tokens expire (silent failure)</td><td>Bot token never expires</td></tr>
+      </table>
+
+      <p><strong>What changes in Session 7:</strong></p>
+      <ul>
+        <li><code>app/api/telegram/route.ts</code> — new webhook handler</li>
+        <li><code>lib/telegram.ts</code> — <code>sendTelegramMessage(chatId, text)</code> replaces <code>notifySeller()</code></li>
+        <li>New env vars: <code>TELEGRAM_BOT_TOKEN</code>, <code>TELEGRAM_CHAT_ID</code></li>
+        <li>Meta env vars can be removed after Telegram is confirmed working</li>
+      </ul>
+
+      <h4>TypeScript + Build</h4>
+      <pre><code>npx tsc --noEmit
+# → 0 errors ✅
+
+npm run build
+# ✓ Compiled successfully
+# 16 routes — all server-rendered
+# New: /admin/products/[id]/edit (3.79 kB), /api/enquire
+# No errors. ✅</code></pre>
+
+      <h4>Commit and Push</h4>
+      <pre><code>git add [all 13 changed files]
+git commit -m "feat: Session 6 — live search, buy request modal, edit page, revalidation fixes"
+# [main 904cb1a] 13 files changed, 872 insertions(+), 383 deletions(-)
+
+gh auth switch --user FAIT-Pro
+git push
+# ea984cc..904cb1a  main -> main ✅
+
+git push origin snapshot-v5-session5-complete
+# * [new branch] snapshot-v5-session5-complete ✅</code></pre>
+
+      <p><strong>One pending action before deploying:</strong> Run the <code>enquiries</code> table SQL in Supabase → SQL Editor. Then <code>vercel --prod</code>.</p>
+    </div>
+  </div>
+
+  <!-- ── Exchange 3: Document update request ─────────────────────── -->
+  <div class="turn user">
+    <div class="label">Felix</div>
+    <div class="bubble">Update all documents
+Continue from where you left off.</div>
+  </div>
+  <div class="turn user">
+    <div class="label">Felix</div>
+    <div class="bubble">Update all documents</div>
+  </div>
+  <div class="turn assistant">
+    <div class="label">Claude</div>
+    <div class="bubble">
+      <p>Read CLAUDE.md, SESSION_LOG.md, and checked HTML log structure before updating. All three documents updated via Python scripts (per project rules — no <code>cat &gt;</code>).</p>
+
+      <p><strong>CLAUDE.md updates:</strong></p>
+      <ul>
+        <li>Last verified: 2026-06-19 (Session 6)</li>
+        <li>Added Channel C — Telegram bot (planned)</li>
+        <li>Updated tech stack — Meta marked BLOCKED, Telegram listed as planned</li>
+        <li>Updated file map — added SearchBar.tsx, BuyRequestModal.tsx, /api/enquire, /admin/products/[id]/edit/</li>
+        <li>Added enquiries table to DB schema section</li>
+        <li>Known Bugs section — all bugs fixed, no remaining bugs</li>
+        <li>Updated What Has Been Built — added Session 6 items</li>
+        <li>Updated What Has NOT Been Built — Telegram bot is now P1 for Session 7</li>
+        <li>Added Rule #10 (on-demand revalidation pattern) and Rule #11 (GitHub/Vercel account check)</li>
+        <li>Added Git Branch Strategy section</li>
+        <li>Removed stale BUG 1 note (was already fixed in Session 4)</li>
+      </ul>
+
+      <p><strong>SESSION_LOG.md:</strong> Session 6 entry appended covering full review findings, user decisions, all implementation details, TypeScript/build results, git commands, and Telegram architecture plan.</p>
+
+      <p><strong>HTML log:</strong> Session 6 exchanges appended in full — review, user responses, all code changes with full code blocks, commit output, architecture discussion.</p>
+
+      <pre><code>git add CLAUDE.md SESSION_LOG.md "WhatsApp-Estore - Claude Dev Session (14_05_2026).html"
+git commit -m "docs: Session 6 complete — update all three project documents"
+git push</code></pre>
+    </div>
+  </div>
+
+  <div style="margin-top:24px; padding:16px; background:#0a2510; border-left:4px solid #25D366; border-radius:6px; color:#b3ffcc;">
+    <p><strong>Session 6 final summary</strong></p>
+    <ul>
+      <li>Snapshot branch <code>snapshot-v5-session5-complete</code> created and pushed — safe restore point</li>
+      <li>Live search — 300ms debounce, useTransition spinner, no page reload</li>
+      <li>Request to Buy modal — captures buyer name + phone, stored in new <code>enquiries</code> table</li>
+      <li>Dedicated product edit page at <code>/admin/products/[id]/edit</code> — full page, mobile-friendly</li>
+      <li>On-demand revalidation — storefront updates immediately on every admin action</li>
+      <li>Notification failure logging — HTTP status + body now logged on Meta API errors</li>
+      <li>ProductActions.tsx simplified — inline edit removed, 250 lines of dead code deleted</li>
+      <li>TypeScript: 0 errors. Build: clean. Commit: 904cb1a</li>
+      <li>Telegram bot plan documented — replaces Meta for listing webhook + notifications in Session 7</li>
+    </ul>
+    <p><strong>Pending before deploy:</strong> Run <code>enquiries</code> table SQL in Supabase → SQL Editor, then <code>vercel --prod</code>.</p>
+    <p><strong>Next session:</strong> Build the Telegram bot (Channel C).</p>
+  </div>
+</div>
+
 <hr />
 <div style="color:#666; font-size:0.78rem; text-align:center; padding-top:16px; border-top:1px solid #222; margin-top:24px;">
-  Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 12 June 2026<br/>
+  Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 19 June 2026<br/>
   Felix Okon &amp; Claude Sonnet 4.6 — WEBSITE_AI_Generated_Xai/WhatsApp-estore<br/>
   <em>This file is the primary tutorial record of the project. Update verbatim every session alongside CLAUDE.md and SESSION_LOG.md.</em>
 </div>

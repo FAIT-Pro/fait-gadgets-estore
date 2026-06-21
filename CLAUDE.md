@@ -3,25 +3,33 @@
 This file tells Claude Code everything it needs to know about this project.
 Read this fully before making any changes.
 
-**Last verified:** 2026-06-12 (Session 5 — complete)
+**Last verified:** 2026-06-19 (Session 6 — complete)
 
 ---
 
 ## What This Project Is
 
-A zero-cost e-commerce storefront with two ways to list products:
+A zero-cost e-commerce storefront with three ways to list products:
 
-**Channel A — WhatsApp (original design):**
+**Channel A — WhatsApp bot (original design, currently blocked):**
 Owner forwards WhatsApp image → Meta Cloud API delivers it to our webhook → Gemini AI
 reads it → product saved to Supabase → appears on storefront → visitor interacts →
 owner gets WhatsApp notification.
+Status: Meta Business verification was rejected. Channel exists in code but is non-functional
+until Meta approves. Plan is to replace Meta with a Telegram bot (see Channel C).
 
-**Channel B — Admin Upload Interface (added Session 3 after Meta verification rejection):**
+**Channel B — Admin Upload Interface (primary channel):**
 Owner logs in to /admin → taps "Add Product" → takes/uploads a photo → Gemini AI
 reads it → fields pre-filled → owner reviews and edits → Save as Draft or Publish Now.
+This is the main input channel and always works with no external dependencies.
 
-Both channels use the same Gemini + Cloudinary + Supabase pipeline.
-The Admin Upload Interface is the primary input channel until Meta verifies the business.
+**Channel C — Telegram Bot (planned, not yet built):**
+Owner forwards product photo to a Telegram bot → same Gemini + Cloudinary + Supabase
+pipeline → product listed → seller gets Telegram confirmation. Telegram requires zero
+business verification. Will replace Meta WhatsApp Cloud API for both the listing webhook
+and seller notifications. WhatsApp stays as the customer-facing channel.
+
+Both existing channels use the same Gemini + Cloudinary + Supabase pipeline.
 
 **Store name:** FAIT Gadgets
 **Live URL:** https://fait-gadgets-estore.vercel.app
@@ -39,8 +47,9 @@ The Admin Upload Interface is the primary input channel until Meta verifies the 
 | Database | Supabase (PostgreSQL) | Free tier, real-time, row-level security |
 | Image storage | Cloudinary | Free CDN, auto-optimization |
 | AI processing | Google Gemini 2.5 Flash | Reads image + caption → structured product data |
-| WhatsApp bot | Meta WhatsApp Cloud API | Receives forwarded messages via webhook (migrated from Green API) |
-| Seller notifications | Meta WhatsApp Cloud API | Sends WhatsApp messages to the seller's phone (same API as bot) |
+| WhatsApp bot | Meta WhatsApp Cloud API | BLOCKED — Business verification rejected. Webhook code exists, not functional |
+| Telegram bot | (planned — Session 7) | Will replace Meta for both listing webhook and seller notifications |
+| Seller notifications | Meta WhatsApp Cloud API | Currently active but may fail when token expires — Telegram replacement planned |
 | Live chat | Tawk.to | Widget on storefront — CONFIGURED ✅ (NEXT_PUBLIC_TAWKTO_ID set) |
 | Hosting | Vercel | Free, deploys automatically from Git |
 
@@ -59,18 +68,19 @@ estore/
 ├── .env.local              ← Owner's actual secrets (never commit this)
 │
 ├── package.json            ← Dependencies
-├── next.config.js          ← Allows Cloudinary image domains only (green-api.com removed)
+├── next.config.js          ← Allows Cloudinary image domains only
 ├── tailwind.config.js      ← Brand green color + content paths
 ├── tsconfig.json           ← TypeScript config
 ├── postcss.config.js       ← Required for Tailwind
 │
 ├── lib/                    ← Shared server-side utilities
 │   ├── supabase.ts         ← Two clients: public (storefront) + admin (API routes + dashboard)
-│   │                          Also exports Product and Interaction TypeScript types
+│   │                          Also exports Product, Interaction TypeScript types
 │   ├── gemini.ts           ← Calls Gemini 2.5 Flash via REST API (NOT the SDK)
 │   │                          Returns: { name, description, price, currency, category }
 │   ├── cloudinary.ts       ← Uploads image URL or base64 dataUri → returns CDN URL
 │   ├── notify.ts           ← Sends WhatsApp messages to seller via Meta Cloud API
+│   │                          Logs HTTP status + body on failure (added Session 6)
 │   │                          Exports: notifySeller(), productListedMessage(), visitorInteractionMessage()
 │   └── auth.ts             ← Admin auth helpers
 │                              isAdminAuthed() — for Server Component pages
@@ -79,12 +89,14 @@ estore/
 ├── app/                    ← Next.js App Router pages and API routes
 │   ├── globals.css         ← Tailwind base + custom component classes (.btn-primary, .badge, etc.)
 │   ├── layout.tsx          ← Root layout: fonts, meta tags, TawkToWidget on every page
-│   ├── page.tsx            ← Main storefront: product grid, category filter, search
+│   ├── page.tsx            ← Main storefront: product grid, category filter, live search
+│   │                          revalidate = 600 (on-demand revalidation fires on admin actions)
 │   │
 │   ├── product/
 │   │   └── [id]/
 │   │       └── page.tsx    ← Individual product page: ImageGallery, description, EnquireButton
-│   │                          Uses supabaseAdmin — sold products show SOLD overlay (BUG 1 fixed)
+│   │                          Uses supabaseAdmin — sold products show SOLD overlay ✅
+│   │                          revalidate = 600 (on-demand revalidation fires on status changes)
 │   │
 │   ├── admin/
 │   │   ├── page.tsx        ← Admin login page (redirects to dashboard if already authed)
@@ -93,26 +105,37 @@ estore/
 │   │   │   ├── page.tsx            ← Dashboard: stats (Live/Drafts/Sold) + tabbed product list
 │   │   │   ├── LogoutButton.tsx    ← Client logout button → calls /api/admin/logout
 │   │   │   ├── ProductTabs.tsx     ← Client component: Live / Drafts / Sold tab switcher
-│   │   │   └── ProductActions.tsx  ← Per-product row:
-│   │   │                               Draft  → Edit / Publish / Delete
-│   │   │                               Live   → Edit / Unpublish / Mark Sold / Copy URL / Delete
-│   │   │                               Sold   → Edit / Re-list / Delete
+│   │   │   └── ProductActions.tsx  ← Per-product row (simplified Session 6):
+│   │   │                               Edit → links to /admin/products/[id]/edit
+│   │   │                               Status buttons: Publish / Unpublish / Mark Sold / Re-list
+│   │   │                               Copy URL / Delete
 │   │   └── products/
-│   │       └── new/
-│   │           ├── page.tsx        ← Server Component wrapper (auth guard)
-│   │           └── UploadForm.tsx  ← Client component: three-step upload form
-│   │                                   Step 1: tap-to-photo OR pick from image library
-│   │                                   Step 2: spinner while Cloudinary + Gemini run in parallel
-│   │                                   Step 3: pre-filled editable form, multi-photo strip, Save Draft / Publish Now
+│   │       ├── new/
+│   │       │   ├── page.tsx        ← Server Component wrapper (auth guard)
+│   │       │   └── UploadForm.tsx  ← Client component: three-step upload form
+│   │       │                           Step 1: tap-to-photo OR pick from image library
+│   │       │                           Step 2: spinner while Cloudinary + Gemini run in parallel
+│   │       │                           Step 3: pre-filled editable form, multi-photo strip, Save Draft / Publish Now
+│   │       └── [id]/
+│   │           └── edit/
+│   │               ├── page.tsx    ← Server Component: auth guard + fetch product → renders EditForm
+│   │               └── EditForm.tsx ← Client component: full-page product editor
+│   │                                   All fields editable: name, price, currency, category,
+│   │                                   description, photos (add/remove/library pick)
+│   │                                   Save as Draft / Publish buttons
 │   │
 │   └── api/
 │       ├── webhook/
 │       │   └── route.ts    ← GET: Meta webhook verification
 │       │                      POST: Incoming WhatsApp messages → list product or handle SOLD command
-│       │                      Verifies X-Hub-Signature-256 using META_APP_SECRET (BUG 2 fixed ✅)
+│       │                      Verifies X-Hub-Signature-256 using META_APP_SECRET ✅
+│       │                      NOTE: Currently blocked by Meta verification rejection
 │       ├── track/
-│           └── route.ts    ← POST: logs visitor interactions (view/like/save/enquiry)
-│                              Notifies seller for like, save, enquiry (not views)
+│       │   └── route.ts    ← POST: logs visitor interactions (view/like/save/enquiry)
+│       │                      Notifies seller for like, save, enquiry (not views)
+│       ├── enquire/
+│       │   └── route.ts    ← POST: saves buyer contact details to enquiries table
+│       │                      Also logs interaction + notifies seller with full buyer info
 │       └── admin/
 │           ├── login/
 │           │   └── route.ts    ← POST: verify ADMIN_PASSWORD, set httpOnly cookie (7 days)
@@ -125,14 +148,20 @@ estore/
 │           ├── upload-image/
 │           │   └── route.ts         ← POST: extra photos → Cloudinary only (no Gemini)
 │           └── products/
-│               ├── route.ts         ← POST: create new product (used by UploadForm)
+│               ├── route.ts         ← POST: create new product; calls revalidatePath('/') on success
 │               └── [id]/
 │                   └── route.ts     ← PATCH (edit fields incl. status) + DELETE — both auth-gated
+│                                       PATCH calls revalidatePath('/') + revalidatePath('/product/[id]')
+│                                       DELETE calls revalidatePath('/')
 │
 └── components/             ← Reusable React components
     ├── ProductCard.tsx     ← Product tile: image, name, price, like/save buttons
     │                          Tracks views on mount, persists like/save in localStorage
-    ├── EnquireButton.tsx   ← "Enquire / Buy" button: logs enquiry + opens Tawk.to chat
+    ├── EnquireButton.tsx   ← Two-button row: "Request to Buy" (opens modal) + chat icon (Tawk.to)
+    ├── BuyRequestModal.tsx ← Bottom-sheet modal: buyer name + phone + optional message
+    │                          Submits to /api/enquire → success confirmation shown
+    ├── SearchBar.tsx       ← Live search client component: 300ms debounce + useTransition spinner
+    │                          Wrapped in <Suspense> in page.tsx (required for useSearchParams)
     ├── ImageGallery.tsx    ← Multi-photo viewer: large main image + thumbnail strip + SOLD overlay
     ├── TawkToWidget.tsx    ← Injects Tawk.to script into every page
     └── admin/
@@ -143,6 +172,9 @@ estore/
 
 ## Database Schema (Supabase)
 
+**Important:** Run `schema.sql` in Supabase → SQL Editor to create all tables.
+Each session adds new tables/columns — always run the full file (all statements use IF NOT EXISTS).
+
 ### Table: `products`
 | Column | Type | Notes |
 |---|---|---|
@@ -152,10 +184,10 @@ estore/
 | price | numeric(12,2) | Extracted from image/caption, nullable |
 | currency | text | 'NGN' or 'USD', default 'NGN' |
 | category | text | One of: Fashion, Electronics, Food & Drinks, Beauty, Home & Living, Other |
-| image_url | text | Cloudinary CDN URL |
+| image_url | text | Cloudinary CDN URL (primary image) |
+| image_urls | text[] | Array of all product image URLs (first = primary) |
 | status | text | 'available', 'sold', or 'draft' — no CHECK constraint, plain text |
-| image_urls | text[] | Array of all product image URLs (first = primary). Add with: `ALTER TABLE products ADD COLUMN IF NOT EXISTS image_urls TEXT[] DEFAULT '{}';` |
-| wa_message_id | text | Meta message ID (used for deduplication — prevents listing same message twice) |
+| wa_message_id | text | Meta message ID (used for deduplication) |
 | created_at | timestamptz | Auto set |
 | updated_at | timestamptz | Auto-updated via trigger |
 
@@ -168,15 +200,27 @@ estore/
 | visitor_id | text | Anonymous browser ID from localStorage |
 | created_at | timestamptz | Auto set |
 
+### Table: `enquiries` (added Session 6)
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | Primary key |
+| product_id | uuid | Foreign key → products.id (nullable) |
+| product_name | text | Name of product at time of enquiry |
+| buyer_name | text | Buyer's name (required) |
+| buyer_phone | text | Buyer's WhatsApp/phone number (required) |
+| message | text | Optional message to seller |
+| created_at | timestamptz | Auto set |
+
 ### View: `product_stats`
 Joins products with interaction counts. Use for analytics:
 `select * from product_stats;`
 
 ### Row Level Security (RLS) — Important Behaviour
 - Public client can only read `status = 'available'` products
-- This means: draft and sold products are completely invisible to the storefront (intentional for drafts)
-- `supabaseAdmin` bypasses RLS — used in admin dashboard, webhook handler, and the new admin API routes
-- **Known bug:** product detail page uses the public client, so sold products return 404 instead of a "SOLD" overlay
+- Draft and sold products are invisible to the storefront (intentional for drafts)
+- `supabaseAdmin` bypasses RLS — used in admin dashboard, webhook handler, all admin API routes
+- Product detail page uses `supabaseAdmin` so sold products show SOLD overlay (not 404)
+- `enquiries` table: public can INSERT (anyone can submit a buy request), admin reads via supabaseAdmin
 
 ---
 
@@ -185,7 +229,7 @@ Joins products with interaction counts. Use for analytics:
 All required. See `.env.example` for the full list with comments.
 Never commit `.env.local` — it contains secrets.
 
-### Current `.env.local` status (as of 2026-06-09)
+### Current `.env.local` status (as of 2026-06-19)
 
 ```
 # ── SUPABASE ──────────────────────────────────────────
@@ -201,12 +245,12 @@ CLOUDINARY_API_SECRET=...                                           ← SET
 # ── GOOGLE GEMINI AI ──────────────────────────────────
 GEMINI_API_KEY=AQ.Ab8RN6J...                                        ← SET (new format, valid)
 
-# ── META WHATSAPP CLOUD API ───────────────────────────
-META_ACCESS_TOKEN=...                                               ← SET
+# ── META WHATSAPP CLOUD API (may be replaced by Telegram in Session 7) ────────
+META_ACCESS_TOKEN=...                                               ← SET (risk: temporary token, may expire)
 META_PHONE_NUMBER_ID=1132807136580749                               ← SET
 META_WABA_ID=15720796582561044                                      ← SET
 META_WEBHOOK_VERIFY_TOKEN=fait-gadgets-webhook-2026                 ← SET
-META_APP_SECRET=...                                                 ← SET ✅ (Session 5 — activates webhook security)
+META_APP_SECRET=...                                                 ← SET ✅
 
 # ── SELLER ────────────────────────────────────────────
 SELLER_PHONE=2347037401412                                          ← SET (Nigerian format, no +)
@@ -216,17 +260,21 @@ NEXT_PUBLIC_STORE_NAME=FAIT Gadgets                                 ← SET
 NEXT_PUBLIC_SITE_URL=https://fait-gadgets-estore.vercel.app        ← SET
 
 # ── TAWK.TO ───────────────────────────────────────────
-NEXT_PUBLIC_TAWKTO_ID=6a2a9f25f.../1jqr7rbgv                       ← SET ✅ (Session 5 — live chat enabled)
+NEXT_PUBLIC_TAWKTO_ID=6a2a9f25f.../1jqr7rbgv                       ← SET ✅
 
 # ── ADMIN DASHBOARD ───────────────────────────────────
-ADMIN_PASSWORD=FaitGadg3ts#2026                                     ← SET ✅ (changed from admin123 in Session 5)
+ADMIN_PASSWORD=FaitGadg3ts#2026                                     ← SET ✅
+
+# ── TELEGRAM BOT (Session 7 — not yet added) ─────────
+# TELEGRAM_BOT_TOKEN=                                               ← PENDING
+# TELEGRAM_CHAT_ID=                                                 ← PENDING
 ```
 
 ### Variables that are NO LONGER needed (Green API era — do not re-add)
 ```
-GREEN_API_INSTANCE     ← removed, commented out in .env.local
-GREEN_API_TOKEN        ← removed, commented out in .env.local
-CALLMEBOT_API_KEY      ← removed (notifications now via Meta)
+GREEN_API_INSTANCE     ← removed
+GREEN_API_TOKEN        ← removed
+CALLMEBOT_API_KEY      ← removed
 ```
 
 ---
@@ -234,66 +282,85 @@ CALLMEBOT_API_KEY      ← removed (notifications now via Meta)
 ## Key Rules — Follow These Always
 
 ### 1. Server vs Client components
-- `app/page.tsx` and `app/product/[id]/page.tsx` are **Server Components** — they fetch from Supabase directly, no `useEffect`, no `useState`
-- `app/admin/dashboard/page.tsx` is a **Server Component** — uses `supabaseAdmin` (exception to rule 2 below)
+- `app/page.tsx` and `app/product/[id]/page.tsx` are **Server Components** — fetch from Supabase directly
+- `app/admin/dashboard/page.tsx` is a **Server Component** — uses `supabaseAdmin` (safe, runs server-side)
 - All `components/*.tsx` files are **Client Components** — they have `'use client'` at the top
 - API routes (`app/api/**/route.ts`) run on the **server only** — use `supabaseAdmin` here
+- `SearchBar.tsx` uses `useSearchParams` — must be wrapped in `<Suspense>` in the parent page
 
 ### 2. supabaseAdmin usage
 `supabaseAdmin` (service role key) bypasses Row Level Security.
-It is used in:
+Used in:
 - All `app/api/` route files
 - `app/admin/dashboard/page.tsx` (Server Component — runs server-side, safe)
+- `app/product/[id]/page.tsx` (Server Component — needed so sold products show SOLD overlay)
+- `app/admin/products/[id]/edit/page.tsx` (Server Component — fetches product for pre-fill)
 
-Never use `supabaseAdmin` inside client components or `lib/` files that get imported by components.
+Never use `supabaseAdmin` inside client components or lib/ files imported by components.
 
 ### 3. Tailwind only — no inline styles
 All styling goes through Tailwind classes. Custom reusable classes (`.btn-primary`, `.btn-ghost`, `.badge`, `.price-tag`) are defined in `app/globals.css`. Do not add `style={{}}` props.
 
 ### 4. Image handling
 All product images go through Cloudinary before being saved to the database.
-The webhook downloads the image from Meta (requires Bearer auth header), then passes the base64 dataUri to `uploadProductImage()`. Never save a temporary Meta media URL to Supabase.
+Never save a temporary Meta media URL or Telegram file URL to Supabase — always upload to Cloudinary first.
 
 ### 5. Error handling in the webhook
 The webhook (`app/api/webhook/route.ts`) must always return HTTP 200, even on errors.
 If it returns 4xx or 5xx, Meta will retry repeatedly and can create duplicate products.
 Log errors to console but return `{ ok: false }` with status 200.
+Same rule will apply when the Telegram bot webhook is built.
 
 ### 6. Notifications are fire-and-forget
-`notifySeller()` catches its own errors internally. Never `await` it in a way that would block the main product listing flow if the Meta API is slow or down.
+`notifySeller()` catches its own errors internally. Never `await` it in a way that would block the main flow.
+As of Session 6, it now logs the HTTP status code and response body if the Meta API returns a non-200.
 
 ### 7. Gemini uses REST API directly — not the SDK
-`lib/gemini.ts` calls `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent` directly via `fetch`. The `@google/generative-ai` package in `package.json` is a leftover and is NOT used. Do not import from it.
+`lib/gemini.ts` calls `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent`
+directly via `fetch`. Do not import from `@google/generative-ai` — it is not installed.
 
 ### 8. Admin auth is cookie-based
-`lib/auth.ts` checks for `admin_token === 'verified'` cookie. The cookie is set by `/api/admin/login` for 7 days. It is httpOnly (JavaScript cannot read it). Always use `isAdminAuthed()` in Server Components and `isAdminAuthedFromRequest(req)` in API routes.
+`lib/auth.ts` checks for `admin_token === 'verified'` cookie. The cookie is set by `/api/admin/login` for 7 days.
+Always use `isAdminAuthed()` in Server Components and `isAdminAuthedFromRequest(req)` in API routes.
 
 ### 9. HTML Session Log is mandatory — update it every session
-`WhatsApp-Estore - Claude Dev Session (14_05_2026).html` in the project root is the primary tutorial record of this project. It must be updated **verbatim** at the end of every session — every exchange, every code block, every command, every output, every error, every fix. Nothing summarised. This file is updated alongside `CLAUDE.md` and `SESSION_LOG.md`. Omitting it is not acceptable.
+`WhatsApp-Estore - Claude Dev Session (14_05_2026).html` in the project root is the primary tutorial record.
+It must be updated **verbatim** at the end of every session — every exchange, every code block, every command,
+every output, every error, every fix. Nothing summarised. Updated alongside CLAUDE.md and SESSION_LOG.md.
+
+### 10. On-demand revalidation pattern
+After any admin action that changes what's visible on the storefront, call `revalidatePath()`:
+- Create product → `revalidatePath('/')`
+- Edit product → `revalidatePath('/')` + `revalidatePath('/product/${id}')`
+- Delete product → `revalidatePath('/')`
+This makes changes appear on the storefront immediately without waiting for the 600s fallback interval.
+
+### 11. GitHub / Vercel account at session start
+Both GitHub CLI and Vercel CLI must be on the **FAIT-Pro** account.
+Check and fix at the start of every session if needed:
+```bash
+gh auth status           # check active account
+gh auth switch --user FAIT-Pro   # switch if wrong
+vercel whoami            # check
+vercel login             # re-login if wrong account
+```
 
 ---
 
-## Known Bugs (to be fixed)
+## Known Bugs
 
-### BUG 1: Sold products show 404 instead of "SOLD" overlay
-**File:** `app/product/[id]/page.tsx`
-**Cause:** Uses the public Supabase client. RLS policy blocks public access to `status = 'sold'` products. So fetching a sold product returns null → `notFound()` → 404.
-**Symptom:** A visitor who bookmarked a product gets a 404 after it's sold.
-**Fix options:**
-- Option A: Add a second Supabase query using `supabaseAdmin` as a fallback (or just use `supabaseAdmin` for the product detail page)
-- Option B: Modify the RLS policy to allow public clients to read all products (including sold), relying on the `status` field for display logic
+All previously known bugs have been fixed:
 
-### BUG 2: Webhook signature verification — FULLY FIXED ✅
-**File:** `app/api/webhook/route.ts`
-**Fixed Session 5:** HMAC-SHA256 verification using `META_APP_SECRET` (now set on Vercel).
-**Live tested:** Three curl tests confirmed — unsigned/wrong-signed requests return `{"ok":false}`,
-correctly signed requests return `{"ok":true}`. Deployed and verified 2026-06-12.
+- ✅ **BUG 1 FIXED (Session 4):** Sold products now show SOLD overlay — product detail page uses `supabaseAdmin`
+- ✅ **BUG 2 FIXED (Session 5):** Webhook signature verification active + live tested in production
+
+No remaining known bugs.
 
 ---
 
-## Dead Code / Stale Items (cleanup backlog)
+## Dead Code / Stale Items
 
-All previous items resolved in Session 4. No remaining stale items.
+None. All previous stale items were resolved in Sessions 4–5.
 
 ---
 
@@ -318,98 +385,108 @@ Requires `.env.local` to be filled in before `npm run dev` works properly.
 ## How to Deploy
 
 ```bash
-# First-time Vercel setup
-vercel
+# Ensure correct account
+gh auth switch --user FAIT-Pro
+vercel whoami   # should show FAIT-Pro
 
 # Deploy to production
 vercel --prod
 ```
 
-Environment variables must also be added in Vercel dashboard:
+Environment variables must also be set in Vercel dashboard:
 Project → Settings → Environment Variables
 
-After deploying, register the webhook URL in Meta Developer Console:
-`https://fait-gadgets-estore.vercel.app/api/webhook`
-Verify token: `fait-gadgets-webhook-2026` (matches `META_WEBHOOK_VERIFY_TOKEN`)
+After deploying a new Telegram webhook (Session 7), register the URL with the bot:
+`https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://fait-gadgets-estore.vercel.app/api/telegram`
 
 ---
 
-## Seller Commands (via WhatsApp)
+## Seller Commands (current — via Admin Upload Interface)
 
-| Message sent to the WhatsApp Business number | What happens |
+| Action | What to do |
 |---|---|
-| Any image (with or without caption) | Product is listed on the store |
-| Text: `SOLD` | Most recently listed available product is marked as sold |
+| List a product | Go to /admin → Add Product → take photo → AI fills details → Publish |
+| Mark product sold | Dashboard → Mark Sold button on the product row |
+| Edit a product | Dashboard → Edit button → full edit page → Save |
+
+## Seller Commands (future — via Telegram bot, Session 7)
+
+| Message sent to Telegram bot | What happens |
+|---|---|
+| Any image (with or without caption) | Product listed on store, Telegram confirmation sent back |
+| Text: `SOLD` | Most recently listed available product marked as sold |
 
 ---
 
 ## What Has Been Built ✅
 
-- [x] Storefront: product grid, category filter, search bar
-- [x] Individual product page with enquiry button + SOLD overlay logic
-- [x] WhatsApp webhook — Meta Cloud API (GET verification + POST message handler)
+- [x] Storefront: product grid, category filter, **live search** (300ms debounce, no reload)
+- [x] Individual product page with SOLD overlay logic (uses supabaseAdmin)
+- [x] **Request to Buy modal** — buyer enters name + phone → stored in `enquiries` table → seller notified
+- [x] **Dedicated product edit page** at `/admin/products/[id]/edit` — full page, mobile-friendly
+- [x] WhatsApp webhook — Meta Cloud API (GET verification + POST handler with HMAC-SHA256 auth)
 - [x] Gemini 2.5 Flash AI pipeline (image + caption → product name/description/price/category)
-- [x] Cloudinary upload pipeline (Meta image → base64 → Cloudinary CDN URL)
-- [x] Seller notifications via Meta Cloud API (new listing, like, save, enquiry)
+- [x] Cloudinary upload pipeline (image → base64 → Cloudinary CDN URL)
+- [x] Seller notifications via Meta Cloud API (new listing, like, save, enquiry) with failure logging
+- [x] **On-demand revalidation** — storefront updates immediately on every admin publish/edit/delete
 - [x] Visitor interaction tracking (view/like/save/enquiry stored in Supabase)
-- [x] Deduplication via `wa_message_id` (same message cannot create two products)
+- [x] Deduplication via `wa_message_id` (same WhatsApp message cannot create two products)
 - [x] Admin login page with password form
 - [x] Admin session cookie (httpOnly, 7 days, cleared on logout)
 - [x] Admin dashboard: stats (Live / Drafts / Sold), three-tab product list
-- [x] Per-product actions vary by status:
-  - Draft: Publish, Edit, Delete
-  - Live: Unpublish, Mark Sold, Copy URL, Edit, Delete
-  - Sold: Re-list, Edit, Delete
+- [x] Per-product actions in dashboard:
+  - Edit → links to dedicated edit page
+  - Draft: Publish / Delete
+  - Live: Unpublish / Mark Sold / Copy URL / Delete
+  - Sold: Re-list / Delete
 - [x] Admin product upload page (`/admin/products/new`):
   - Tap-to-photo / gallery picker (opens camera on mobile)
   - Parallel Cloudinary upload + Gemini AI analysis
   - Fields pre-filled by AI, all editable
   - Save as Draft or Publish Now
-- [x] `/api/admin/analyze` — POST endpoint: file → base64 → Cloudinary + Gemini in parallel
-- [x] `/api/admin/products` — POST endpoint: create new product with any status
-- [x] Draft/Publish workflow: status = 'draft' | 'available' | 'sold' (no schema migration needed)
-- [x] PWA manifest (`/public/manifest.json`) + SVG icon + mobile viewport meta tags
-- [x] Multi-image support per product (up to 6 photos):
-  - `image_urls TEXT[]` column in Supabase (run migration SQL above)
-  - Upload form: first photo triggers Gemini AI; additional photos go to Cloudinary only
-  - Thumbnail strip in upload form — click to preview, × to remove
-  - ImageGallery component on product detail page (large image + thumbnail row)
-  - Edit form in dashboard: add/remove photos per product
-- [x] **Image library picker** — reuse previously uploaded photos without re-uploading:
-  - `GET /api/admin/images` — returns all distinct image URLs from database (newest first)
-  - `components/admin/ImagePickerModal.tsx` — 3-column grid modal, tap to select
-  - Available on upload page (new product) and in edit form (existing product)
-  - Two buttons in thumbnail strip: `+` (upload new) and gallery icon (pick from library)
-  - On upload stage: picking from library skips Gemini and goes straight to the form
-- [x] BUG 1 fixed: sold products now show SOLD overlay (product detail page uses `supabaseAdmin`)
-- [x] BUG 2 fully fixed + live tested: webhook rejects forged requests via HMAC-SHA256 signature check
-- [x] ADMIN_PASSWORD strengthened: changed from `admin123` to `FaitGadg3ts#2026` (set on Vercel)
-- [x] `META_APP_SECRET` set on Vercel — webhook security active in production
-- [x] `NEXT_PUBLIC_TAWKTO_ID` set — Tawk.to live chat widget active on storefront
-- [x] `schema.sql` comment fixed: `wa_message_id` now says "Meta message ID"
-- [x] Stale code removed: `*.green-api.com`, `@google/generative-ai`, Green API / CallMeBot vars
-- [x] Cloudinary cloud name corrected to `fait`
-- [x] All code committed and deployed via `vercel --prod` (FAIT-Pro account)
+- [x] Multi-image support (up to 6 photos per product)
+- [x] Image library picker (reuse existing photos, available on upload and edit pages)
+- [x] PWA manifest + SVG icon + mobile viewport meta tags
+- [x] BUG 1 fixed: sold products show SOLD overlay
+- [x] BUG 2 fixed: webhook rejects forged requests (HMAC-SHA256, live tested)
+- [x] ADMIN_PASSWORD strengthened to `FaitGadg3ts#2026`
+- [x] Tawk.to live chat widget active on storefront
+- [x] All code committed, snapshot branch `snapshot-v5-session5-complete` created
+- [x] GitHub auth fix: `gh auth switch --user FAIT-Pro` (must be repeated each terminal session)
+- [x] `schema.sql` fully up to date with all tables and migrations
 
 ---
 
 ## What Has NOT Been Built Yet ❌
 
-### Bugs
-- [x] **BUG 1 FIXED** — Sold products show SOLD overlay (Session 4)
-- [x] **BUG 2 FIXED** — Webhook signature verification active + live tested (Session 5)
+### Next priority — Session 7
+- [ ] **Telegram bot** — replace Meta webhook + seller notifications
+  - Create bot via @BotFather → get TELEGRAM_BOT_TOKEN
+  - Register webhook: `https://fait-gadgets-estore.vercel.app/api/telegram`
+  - `app/api/telegram/route.ts` — receives Telegram photo messages → Gemini + Cloudinary + Supabase
+  - `lib/telegram.ts` — `sendTelegramMessage(chatId, text)` replaces `notifySeller()`
+  - Add `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` to .env.local and Vercel
 
-### Features
-- [ ] "Mark specific product as SOLD" by product ID via WhatsApp (currently only marks the latest)
-- [ ] Bulk upload (multiple images in one WhatsApp message)
-- [ ] Order / reservation system
-- [ ] Analytics page using the `product_stats` Supabase view
-- [ ] Email notifications via Resend as a portable alternative to Meta permanent token
+### Other features
+- [ ] Analytics page — use existing `product_stats` Supabase view
+- [ ] "Mark specific product as SOLD" by product ID via Telegram/WhatsApp command
+- [ ] Bulk upload (multiple images in one message)
+- [ ] Email notifications via Resend (alternative/fallback to Telegram)
+- [ ] Order / reservation system with payment
 
-### Deployment note
-- Vercel CLI must be logged into **FAIT-Pro** account (`vercel login` if needed — not `fait-blog-3543`)
-- GitHub CLI must be logged into **FAIT-Pro** account (`gh auth login` if needed)
-- Both were switched during Session 5; re-verify if terminal is reset
+---
+
+## Git Branch Strategy
+
+- `main` — production, always deployable
+- `snapshot-v5-session5-complete` — stable snapshot before Session 6 changes
+
+**Rule:** Create a snapshot branch before major changes:
+```bash
+git checkout -b snapshot-vN-description
+git push origin snapshot-vN-description
+git checkout main
+```
 
 ---
 
