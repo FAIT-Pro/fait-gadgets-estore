@@ -715,3 +715,123 @@ curl -s -X POST https://fait-gadgets-estore.vercel.app/api/enquire -H "Content-T
 | Documents | ✅ Updated (CLAUDE.md, SESSION_LOG.md, HTML log) |
 
 **Next session:** Build the Telegram bot (Channel C) to replace Meta as both the listing webhook and seller notification channel.
+
+---
+
+---
+
+## Session 7 — 2026-06-22
+
+### Context
+Full project audit performed first — every documented Session 6 claim verified against actual code (BUG 1/2 fixes, live search, buy modal, edit page, revalidation, env vars). All confirmed correct. The project's own memory file was found 13 days stale (still listing fixed bugs as open) and was rewritten. Priority order for remaining work was discussed and agreed: Telegram bot first (replaces blocked WhatsApp channel + fixes Meta token expiry risk), then retire Meta, then analytics page, then mark-SOLD-by-ID, bulk upload, order/payment system, Resend fallback.
+
+### What Was Built This Session
+
+#### Telegram Bot — COMPLETE ✅ (live in production)
+
+**Snapshot branch created first:**
+```bash
+git checkout -b snapshot-v6-before-telegram
+git push -u origin snapshot-v6-before-telegram
+git checkout main
+```
+
+**New file: `lib/telegram.ts`**
+- `sendTelegramMessage(chatId, text)` — mirrors `notifySeller()`, logs HTTP status + body on failure
+- `downloadTelegramFile(fileId)` — resolves a Telegram `file_id` → `getFile` → `file_path` → direct download → base64 dataUri. No Bearer auth header needed (simpler than Meta's media download flow).
+- `productListedMessage()` — same template as `lib/notify.ts`
+
+**New file: `app/api/telegram/route.ts`**
+- POST handler only (no GET verification step needed, unlike Meta)
+- Photo message → `downloadTelegramFile()` → `uploadProductImage()` (existing lib/cloudinary.ts, unchanged) → `extractProductInfo()` (existing lib/gemini.ts, unchanged) → insert to Supabase as `status: 'available'`
+- Text `"SOLD"` → marks the most recent available product as sold (ported from the Meta webhook's SOLD command)
+- Always returns HTTP 200, even on error — same rule as the Meta webhook, prevents Telegram retry storms
+- Deduplication reuses the `wa_message_id` column, with a `tg_` prefix on Telegram message IDs to avoid collision with Meta media IDs
+
+**Schema comment updated** — `wa_message_id` in `schema.sql` now documented as "External message ID (Meta or tg_-prefixed Telegram) for deduplication"
+
+**Env vars added** — `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` placeholders added to `.env.local` and `.env.example`
+
+#### Bug found and fixed during live testing
+
+**Symptom:** First test photo failed with `Gemini API error 400: Unsupported MIME type: application/octet-stream`
+
+**Root cause:** Telegram's file server (`api.telegram.org/file/bot<token>/<path>`) always responds with `Content-Type: application/octet-stream` regardless of the actual file type. The code was trusting that header to build the base64 dataUri's MIME type, and Gemini rejects `application/octet-stream`.
+
+**Fix (`lib/telegram.ts`):**
+```typescript
+// Telegram's file server sends "application/octet-stream" regardless of the
+// actual file type — Gemini rejects that MIME type, so infer it from the
+// file extension in file_path instead (photos are always .jpg).
+const ext = filePath.split('.').pop()?.toLowerCase()
+const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg'
+```
+
+#### Live Testing — Local (ngrok)
+
+Installed ngrok (`brew install --cask ngrok`), configured authtoken, started dev server + tunnel:
+```bash
+npm run dev                          # → http://localhost:3000
+ngrok http 3000                      # → https://parting-travel-truth.ngrok-free.dev
+curl ".../setWebhook?url=https://parting-travel-truth.ngrok-free.dev/api/telegram"
+# → {"ok":true,"result":true,"description":"Webhook was set"}
+```
+
+| Test | Result |
+|---|---|
+| First photo send (before fix landed) | ❌ `{"ok":false}` — octet-stream MIME bug |
+| Photo resend (after hot-reload fix) | ✅ Created "Shure SM7dB Vocal Studio Microphone" — ₦98,000 — `wa_message_id: tg_7` |
+| `SOLD` text command | ✅ Product status flipped to `sold`, confirmed via direct Supabase query |
+
+Verified via ngrok's local request inspector (`http://127.0.0.1:4040/api/requests/http`) cross-referenced with direct Supabase REST queries — not just log absence — to confirm actual database state rather than trusting silent success.
+
+**Design decision confirmed with owner:** Telegram listings auto-publish immediately (`status: 'available'`), same as the original Meta webhook design, no draft review step. Gemini priced the test item at ₦98,000 vs. the ₦87,000 in the caption — flagged as a known AI-extraction variance, not a bug. Owner chose to keep auto-publish rather than switch to draft-first.
+
+#### Deployment — Vercel CLI account issue (recurring)
+
+`vercel whoami` returned three different wrong accounts across repeated `vercel logout` / `vercel login` attempts (`affionbassey-7467`, `fait-blog-3543`, then `affionbassey-7467` again) — same class of issue as the GitHub/Vercel account mismatches in Session 6. Root cause not resolved (owner unsure which email FAIT-Pro uses on Vercel).
+
+**Workaround:** CLAUDE.md documents that this project auto-deploys on git push to `main` via Vercel's GitHub integration. Since `gh auth status` was already correctly on FAIT-Pro, skipped `vercel --prod` entirely:
+```bash
+git add app/api/telegram/ lib/telegram.ts .env.example schema.sql
+git commit -m "feat: Telegram bot — replaces blocked Meta WhatsApp listing channel"
+git push
+# → 3182eba..b0cc6c9  main -> main
+```
+Owner added `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` to Vercel dashboard → Settings → Environment Variables manually (web UI, not CLI) and confirmed the auto-triggered deployment showed "Ready".
+
+#### Live Testing — Production
+
+```bash
+curl -o /dev/null -w "%{http_code}" https://fait-gadgets-estore.vercel.app            # → 200
+curl -o /dev/null -w "%{http_code}" https://fait-gadgets-estore.vercel.app/api/telegram  # → 405 (GET not implemented, expected)
+curl ".../setWebhook?url=https://fait-gadgets-estore.vercel.app/api/telegram"
+# → {"ok":true,"result":true,"description":"Webhook was set"}
+```
+Killed local dev server + ngrok tunnel (no longer needed). Sent one final test photo straight to production:
+```
+Product created: "Lubcon Super Resurs 20W50 Engine Oil" — ₦40,000 — status: available — wa_message_id: tg_11
+Telegram getWebhookInfo: pending_update_count 1 → 0, no last_error — clean delivery
+```
+
+### TypeScript / Build
+```bash
+npx tsc --noEmit   # → 0 errors
+npm run build      # ✓ Compiled successfully — /api/telegram listed as new λ route, no new warnings
+```
+
+### Final State After Session 7
+
+| Item | Status |
+|---|---|
+| Telegram bot (listing + SOLD command) | ✅ Live in production |
+| Octet-stream MIME bug | ✅ Found and fixed during live testing |
+| Snapshot branch `snapshot-v6-before-telegram` | ✅ Pushed |
+| Webhook | ✅ Registered to production URL (`https://fait-gadgets-estore.vercel.app/api/telegram`) |
+| TypeScript / Build | ✅ 0 errors, clean |
+| Code committed + pushed | ✅ `b0cc6c9` on main |
+| Vercel CLI account | ❌ Still unresolved — three wrong accounts seen, deploys must go through `git push` (GitHub auto-deploy) until fixed |
+
+**Open item carried forward:** Vercel CLI authentication is broken for this owner's terminal — `vercel whoami` keeps returning accounts that aren't FAIT-Pro. Until the correct login email is identified, all deploys must rely on git push triggering Vercel's GitHub integration, not `vercel --prod`.
+
+**Next session:** Retire Meta WhatsApp Cloud API now that Telegram is verified live in production (swap remaining `notifySeller()` calls to `sendTelegramMessage()`, drop unused Meta env vars). Then: analytics page using the existing `product_stats` view.

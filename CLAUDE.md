@@ -3,7 +3,7 @@
 This file tells Claude Code everything it needs to know about this project.
 Read this fully before making any changes.
 
-**Last verified:** 2026-06-19 (Session 6 — complete + deployed to production)
+**Last verified:** 2026-06-22 (Session 7 — Telegram bot built, live-tested, deployed to production)
 
 ---
 
@@ -23,13 +23,15 @@ Owner logs in to /admin → taps "Add Product" → takes/uploads a photo → Gem
 reads it → fields pre-filled → owner reviews and edits → Save as Draft or Publish Now.
 This is the main input channel and always works with no external dependencies.
 
-**Channel C — Telegram Bot (planned, not yet built):**
-Owner forwards product photo to a Telegram bot → same Gemini + Cloudinary + Supabase
-pipeline → product listed → seller gets Telegram confirmation. Telegram requires zero
-business verification. Will replace Meta WhatsApp Cloud API for both the listing webhook
-and seller notifications. WhatsApp stays as the customer-facing channel.
+**Channel C — Telegram Bot (built and live, Session 7):**
+Owner forwards product photo to the Telegram bot → same Gemini + Cloudinary + Supabase
+pipeline → product listed (auto-published, `status: 'available'`) → seller gets a Telegram
+confirmation in the same chat. Sending the text `SOLD` marks the most recent available
+product as sold. Telegram requires zero business verification, no token expiry. Currently
+runs alongside Meta (not yet retired) — WhatsApp still stays as the customer-facing channel
+for buyers; Telegram is the seller's listing tool.
 
-Both existing channels use the same Gemini + Cloudinary + Supabase pipeline.
+All three channels use the same Gemini + Cloudinary + Supabase pipeline.
 
 **Store name:** FAIT Gadgets
 **Live URL:** https://fait-gadgets-estore.vercel.app
@@ -48,8 +50,8 @@ Both existing channels use the same Gemini + Cloudinary + Supabase pipeline.
 | Image storage | Cloudinary | Free CDN, auto-optimization |
 | AI processing | Google Gemini 2.5 Flash | Reads image + caption → structured product data |
 | WhatsApp bot | Meta WhatsApp Cloud API | BLOCKED — Business verification rejected. Webhook code exists, not functional |
-| Telegram bot | (planned — Session 7) | Will replace Meta for both listing webhook and seller notifications |
-| Seller notifications | Meta WhatsApp Cloud API | Currently active but may fail when token expires — Telegram replacement planned |
+| Telegram bot | Telegram Bot API | LIVE ✅ (Session 7) — listing pipeline + SOLD command, deployed to production |
+| Seller notifications | Meta WhatsApp Cloud API | Still active for non-Telegram events (likes/saves/enquiries) — not yet retired, may fail when token expires |
 | Live chat | Tawk.to | Widget on storefront — CONFIGURED ✅ (NEXT_PUBLIC_TAWKTO_ID set) |
 | Hosting | Vercel | Free, deploys automatically from Git |
 
@@ -82,6 +84,10 @@ estore/
 │   ├── notify.ts           ← Sends WhatsApp messages to seller via Meta Cloud API
 │   │                          Logs HTTP status + body on failure (added Session 6)
 │   │                          Exports: notifySeller(), productListedMessage(), visitorInteractionMessage()
+│   ├── telegram.ts         ← Telegram bot helpers (added Session 7)
+│   │                          sendTelegramMessage(chatId, text) — mirrors notifySeller()
+│   │                          downloadTelegramFile(fileId) — file_id → file_path → base64 dataUri
+│   │                          Exports: sendTelegramMessage(), downloadTelegramFile(), productListedMessage()
 │   └── auth.ts             ← Admin auth helpers
 │                              isAdminAuthed() — for Server Component pages
 │                              isAdminAuthedFromRequest() — for API routes
@@ -130,6 +136,12 @@ estore/
 │       │                      POST: Incoming WhatsApp messages → list product or handle SOLD command
 │       │                      Verifies X-Hub-Signature-256 using META_APP_SECRET ✅
 │       │                      NOTE: Currently blocked by Meta verification rejection
+│       ├── telegram/
+│       │   └── route.ts    ← POST only (added Session 7, LIVE in production)
+│       │                      Incoming Telegram messages → list product or handle SOLD command
+│       │                      Photo → downloadTelegramFile() → uploadProductImage() → extractProductInfo()
+│       │                      → Supabase insert (status: 'available') → sendTelegramMessage() confirmation
+│       │                      Always returns HTTP 200, same rule as the Meta webhook
 │       ├── track/
 │       │   └── route.ts    ← POST: logs visitor interactions (view/like/save/enquiry)
 │       │                      Notifies seller for like, save, enquiry (not views)
@@ -187,7 +199,7 @@ Each session adds new tables/columns — always run the full file (all statement
 | image_url | text | Cloudinary CDN URL (primary image) |
 | image_urls | text[] | Array of all product image URLs (first = primary) |
 | status | text | 'available', 'sold', or 'draft' — no CHECK constraint, plain text |
-| wa_message_id | text | Meta message ID (used for deduplication) |
+| wa_message_id | text | External message ID for deduplication — Meta media ID, or Telegram message ID prefixed `tg_` (added Session 7) |
 | created_at | timestamptz | Auto set |
 | updated_at | timestamptz | Auto-updated via trigger |
 
@@ -265,9 +277,9 @@ NEXT_PUBLIC_TAWKTO_ID=6a2a9f25f.../1jqr7rbgv                       ← SET ✅
 # ── ADMIN DASHBOARD ───────────────────────────────────
 ADMIN_PASSWORD=FaitGadg3ts#2026                                     ← SET ✅
 
-# ── TELEGRAM BOT (Session 7 — not yet added) ─────────
-# TELEGRAM_BOT_TOKEN=                                               ← PENDING
-# TELEGRAM_CHAT_ID=                                                 ← PENDING
+# ── TELEGRAM BOT (Session 7 — LIVE) ───────────────────
+TELEGRAM_BOT_TOKEN=8831963972:AAFopI9...                            ← SET ✅
+TELEGRAM_CHAT_ID=1478850085                                         ← SET ✅
 ```
 
 ### Variables that are NO LONGER needed (Green API era — do not re-add)
@@ -306,10 +318,10 @@ All product images go through Cloudinary before being saved to the database.
 Never save a temporary Meta media URL or Telegram file URL to Supabase — always upload to Cloudinary first.
 
 ### 5. Error handling in the webhook
-The webhook (`app/api/webhook/route.ts`) must always return HTTP 200, even on errors.
-If it returns 4xx or 5xx, Meta will retry repeatedly and can create duplicate products.
-Log errors to console but return `{ ok: false }` with status 200.
-Same rule will apply when the Telegram bot webhook is built.
+Both webhooks (`app/api/webhook/route.ts` for Meta, `app/api/telegram/route.ts` for Telegram)
+must always return HTTP 200, even on errors. If they return 4xx or 5xx, the platform will
+retry repeatedly and can create duplicate products. Log errors to console but return
+`{ ok: false }` with status 200.
 
 ### 6. Notifications are fire-and-forget
 `notifySeller()` catches its own errors internally. Never `await` it in a way that would block the main flow.
@@ -344,6 +356,18 @@ gh auth switch --user FAIT-Pro   # switch if wrong
 vercel whoami            # check
 vercel login             # re-login if wrong account
 ```
+**Known issue (as of Session 7):** `vercel login` keeps authenticating to the wrong account
+(seen: `affionbassey-7467`, `fait-blog-3543`) and the correct FAIT-Pro login email is not yet
+identified. **Workaround:** this project auto-deploys on git push to `main` via Vercel's
+GitHub integration — if `vercel whoami` is wrong, skip `vercel --prod` entirely and just
+`git push` (as long as `gh auth status` shows FAIT-Pro). Add/change env vars via the Vercel
+**web dashboard** (Settings → Environment Variables), not the CLI, until this is fixed.
+
+### 12. Telegram file downloads — don't trust the Content-Type header
+Telegram's file server (`api.telegram.org/file/bot<token>/<file_path>`) always responds with
+`Content-Type: application/octet-stream`, regardless of the actual file type. Gemini rejects
+that MIME type with a 400 error. `lib/telegram.ts`'s `downloadTelegramFile()` infers the MIME
+type from the file extension in `file_path` instead (Telegram photos are always `.jpg`).
 
 ---
 
@@ -396,8 +420,12 @@ vercel --prod
 Environment variables must also be set in Vercel dashboard:
 Project → Settings → Environment Variables
 
-After deploying a new Telegram webhook (Session 7), register the URL with the bot:
+**If `vercel --prod` fails due to wrong account** (see Rule 11): just `git push` to `main` —
+Vercel's GitHub integration auto-deploys, no CLI auth needed.
+
+Telegram webhook is registered with:
 `https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://fait-gadgets-estore.vercel.app/api/telegram`
+(already done as of Session 7 — only re-run this if the bot token changes or the webhook needs resetting)
 
 ---
 
@@ -409,11 +437,11 @@ After deploying a new Telegram webhook (Session 7), register the URL with the bo
 | Mark product sold | Dashboard → Mark Sold button on the product row |
 | Edit a product | Dashboard → Edit button → full edit page → Save |
 
-## Seller Commands (future — via Telegram bot, Session 7)
+## Seller Commands (live — via Telegram bot, Session 7)
 
 | Message sent to Telegram bot | What happens |
 |---|---|
-| Any image (with or without caption) | Product listed on store, Telegram confirmation sent back |
+| Any image (with or without caption) | Product listed on store immediately (auto-published, `status: 'available'`), Telegram confirmation sent back |
 | Text: `SOLD` | Most recently listed available product marked as sold |
 
 ---
@@ -454,18 +482,23 @@ After deploying a new Telegram webhook (Session 7), register the URL with the bo
 - [x] All code committed, snapshot branch `snapshot-v5-session5-complete` created
 - [x] GitHub auth fix: `gh auth switch --user FAIT-Pro` (must be repeated each terminal session)
 - [x] `schema.sql` fully up to date with all tables and migrations
+- [x] **Telegram bot** (Session 7) — `app/api/telegram/route.ts` + `lib/telegram.ts`, live in production
+  - Photo → product listing via existing Gemini + Cloudinary + Supabase pipeline (unchanged)
+  - `SOLD` text command, ported from the Meta webhook
+  - Live-tested locally via ngrok, then re-tested against production after deploy
+  - Found and fixed a bug during testing: Telegram's file server's `application/octet-stream`
+    Content-Type broke Gemini — fixed by inferring MIME type from file extension instead
 
 ---
 
 ## What Has NOT Been Built Yet ❌
 
-### Next priority — Session 7
-- [ ] **Telegram bot** — replace Meta webhook + seller notifications
-  - Create bot via @BotFather → get TELEGRAM_BOT_TOKEN
-  - Register webhook: `https://fait-gadgets-estore.vercel.app/api/telegram`
-  - `app/api/telegram/route.ts` — receives Telegram photo messages → Gemini + Cloudinary + Supabase
-  - `lib/telegram.ts` — `sendTelegramMessage(chatId, text)` replaces `notifySeller()`
-  - Add `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` to .env.local and Vercel
+### Next priority — Session 8
+- [ ] **Retire Meta WhatsApp Cloud API** — now that Telegram is verified live, swap remaining
+  `notifySeller()` calls (likes/saves/enquiries) to `sendTelegramMessage()`, then drop unused
+  Meta env vars and webhook code
+- [ ] **Resolve Vercel CLI account mismatch** — `vercel whoami` keeps returning the wrong
+  account; identify the correct FAIT-Pro login email so `vercel --prod` works again
 
 ### Other features
 - [ ] Analytics page — use existing `product_stats` Supabase view
@@ -480,6 +513,7 @@ After deploying a new Telegram webhook (Session 7), register the URL with the bo
 
 - `main` — production, always deployable
 - `snapshot-v5-session5-complete` — stable snapshot before Session 6 changes
+- `snapshot-v6-before-telegram` — stable snapshot before Session 7 (Telegram bot) changes
 
 **Rule:** Create a snapshot branch before major changes:
 ```bash
