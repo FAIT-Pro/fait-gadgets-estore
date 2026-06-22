@@ -14,7 +14,7 @@ create table if not exists products (
   category      text        default 'Other',
   image_url     text,
   status        text        default 'available',   -- 'available' | 'sold'
-  wa_message_id text,                              -- Meta message ID (for deduplication — prevents same message listing twice)
+  wa_message_id text,                              -- External message ID (Meta or "tg_"-prefixed Telegram) for deduplication
   created_at    timestamptz default now(),
   updated_at    timestamptz default now()
 );
