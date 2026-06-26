@@ -835,3 +835,71 @@ npm run build      # ✓ Compiled successfully — /api/telegram listed as new �
 **Open item carried forward:** Vercel CLI authentication is broken for this owner's terminal — `vercel whoami` keeps returning accounts that aren't FAIT-Pro. Until the correct login email is identified, all deploys must rely on git push triggering Vercel's GitHub integration, not `vercel --prod`.
 
 **Next session:** Retire Meta WhatsApp Cloud API now that Telegram is verified live in production (swap remaining `notifySeller()` calls to `sendTelegramMessage()`, drop unused Meta env vars). Then: analytics page using the existing `product_stats` view.
+
+---
+
+---
+
+## Session 8 — 2026-06-25
+
+### Context
+Owner reported a bug found in real use: uploading 5 photos of the same TP-Link product to the Telegram bot at once created **five separate product listings**, with price/description landing on only one of them and the other four showing "Ask for price". Screenshot confirmed five distinct rows on the storefront for what should have been one product with five photos.
+
+### Root Cause
+Telegram does not send a multi-photo "album" as a single webhook payload. Each photo arrives as its own POST request, all sharing the same `message.media_group_id`, but the caption (and therefore the price/description seed text) is attached to only one of those messages. `app/api/telegram/route.ts`'s photo handler had no concept of `media_group_id` — it treated every photo message as an independent product, identical to a lone photo upload.
+
+### Fix — BUG 3
+
+**New table + function (`schema.sql`):**
+```sql
+create table if not exists telegram_media_groups (
+  media_group_id text primary key,
+  chat_id        text not null,
+  image_urls     text[] not null default '{}',
+  caption        text,
+  update_count   integer not null default 0,
+  processed      boolean not null default false,
+  created_at     timestamptz default now()
+);
+alter table telegram_media_groups enable row level security;  -- no public policies = locked down
+
+create or replace function append_telegram_media_group(...)  -- atomic append + counter bump
+returns integer as $$ ... $$ language plpgsql;
+```
+RLS is enabled with **no policies at all** — this table is never read by the storefront, only by `supabaseAdmin` in the webhook handler, so it's fully inaccessible to the public/anon client by design.
+
+**New logic in `app/api/telegram/route.ts`:**
+- `message.media_group_id` present → routed to new `handleAlbumPhoto()` instead of the single-photo flow
+- Each photo: download → Cloudinary upload → atomically appended to its `telegram_media_groups` row via `append_telegram_media_group()` RPC (avoids a read-then-write race between near-simultaneous album photos)
+- After appending, the handler waits `MEDIA_GROUP_WAIT_MS = 2000`ms, then attempts an atomic conditional claim: `UPDATE ... SET processed = true WHERE processed = false AND update_count = <the count right after my append>`. If a later photo bumped the count during the wait, this claim matches zero rows and the invocation exits quietly — only the photo that turns out to be genuinely last (by database-serialized order, not wall-clock) succeeds at claiming.
+- The claiming invocation reads the row's `image_urls` (guaranteed current since the claim is one atomic UPDATE) and `caption`, runs Gemini on the **first** photo only — mirroring the existing Admin Upload multi-image rule ("first photo → AI, rest → extra photos, Cloudinary only") — then inserts ONE product with `image_url` = first photo, `image_urls` = all photos, `wa_message_id = tg_group_<media_group_id>`.
+- New `attachLatePhotoToProduct()` helper handles the rare straggler that arrives more than 2s after the rest: instead of creating a duplicate, it appends the photo directly onto the already-created product's `image_urls`.
+- `export const maxDuration = 60` added to the route — the 2s debounce wait plus a Gemini call exceeds Vercel's 10s default function timeout.
+
+**Updated `lib/telegram.ts`:** `productListedMessage()` now takes an optional 4th `photoCount` argument and includes a "📸 N photos" line in the seller's confirmation when an album was merged.
+
+**Single-photo flow is completely unchanged** — only messages carrying a `media_group_id` are routed through the new staging path.
+
+### TypeScript / Build
+```bash
+npx tsc --noEmit   # → 0 errors
+npm run build      # ✓ Compiled successfully, /api/telegram unchanged route size, no new warnings
+```
+
+### Action needed before this fix is live
+The owner must run the updated `schema.sql` in Supabase → SQL Editor (adds `telegram_media_groups` table + `append_telegram_media_group()` function) before deploying. Single-photo uploads are unaffected either way; multi-photo album uploads will fail until the migration runs.
+
+### Known limitation (documented, not fixed)
+There is a narrow theoretical race if a straggler photo arrives in the exact same instant the album is being claimed/finalized — in the worst case one photo could land in an orphaned, never-finalized `telegram_media_groups` row instead of being attached to the product. Given this is a single-seller, low-volume bot, this was judged not worth the added complexity of full row-locking. If it's ever observed in practice, the photo is still safely stored in Cloudinary and can be added to the product manually via the image library picker on the edit page.
+
+### Final State After Session 8
+
+| Item | Status |
+|---|---|
+| BUG 3 (multi-photo album → multiple products) | ✅ Fixed in code |
+| `telegram_media_groups` table + RPC function | ⚠️ Needs `schema.sql` run in Supabase before live |
+| Single-photo Telegram flow | ✅ Unchanged, unaffected |
+| TypeScript / Build | ✅ 0 errors, clean |
+| Documents updated | ✅ CLAUDE.md, SESSION_LOG.md |
+
+**Next session:** Run `schema.sql` in Supabase, deploy, live-test a real multi-photo album against production. Then continue with the carried-forward Session 7 priorities (retire Meta, resolve Vercel CLI account mismatch, analytics page).

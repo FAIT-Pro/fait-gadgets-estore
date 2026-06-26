@@ -51,24 +51,24 @@ export default function ImagePickerModal({ onSelect, onClose }: Props) {
       />
 
       {/* Modal card */}
-      <div className="relative z-10 bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-lg
+      <div className="relative z-10 bg-white dark:bg-gray-900 rounded-t-3xl sm:rounded-2xl w-full max-w-lg
                       flex flex-col shadow-2xl"
            style={{ maxHeight: '85vh' }}>
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
           <div>
-            <h3 className="font-semibold text-gray-800 text-base">Image Library</h3>
+            <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-base">Image Library</h3>
             {!loading && images.length > 0 && (
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                 {images.length} photo{images.length !== 1 ? 's' : ''} — tap to add
               </p>
             )}
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200
-                       flex items-center justify-center text-gray-500 transition-colors"
+            className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700
+                       flex items-center justify-center text-gray-500 dark:text-gray-400 transition-colors"
             aria-label="Close"
           >
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -83,7 +83,7 @@ export default function ImagePickerModal({ onSelect, onClose }: Props) {
           {loading && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-sm text-gray-400">Loading library…</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500">Loading library…</p>
             </div>
           )}
 
@@ -106,15 +106,15 @@ export default function ImagePickerModal({ onSelect, onClose }: Props) {
 
           {!loading && !error && images.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
-              <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                 <svg width="28" height="28" fill="none" viewBox="0 0 24 24"
                      stroke="#9ca3af" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round"
                     d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v13.5A1.5 1.5 0 003.75 21zm11.25-6a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
                 </svg>
               </div>
-              <p className="text-sm text-gray-500 font-medium">Library is empty</p>
-              <p className="text-xs text-gray-400">Upload your first product to start building a library.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Library is empty</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Upload your first product to start building a library.</p>
             </div>
           )}
 
@@ -124,7 +124,7 @@ export default function ImagePickerModal({ onSelect, onClose }: Props) {
                 <button
                   key={idx}
                   onClick={() => onSelect(url)}
-                  className="relative aspect-square rounded-xl overflow-hidden bg-gray-100
+                  className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800
                              border-2 border-transparent hover:border-brand-500
                              focus:outline-none focus:border-brand-500
                              transition-all group"

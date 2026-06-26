@@ -44,8 +44,10 @@ export default function EnquireButton({ productId, productName, formattedPrice }
           else if (window.Tawk_API?.toggle) window.Tawk_API.toggle()
         }}
         title="Chat with us"
-        className="px-4 py-3 rounded-xl border border-gray-200 text-gray-500
-                   hover:border-brand-300 hover:text-brand-600 transition-colors"
+        className="px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
+                   text-gray-500 dark:text-gray-400
+                   hover:border-brand-300 hover:text-brand-600 dark:hover:border-brand-600 dark:hover:text-brand-400
+                   transition-colors"
       >
         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

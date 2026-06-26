@@ -5,7 +5,8 @@
 /* ── Custom base styles ──────────────────────────────────────────── */
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-gray-50 text-gray-900 antialiased transition-colors duration-200
+           dark:bg-gray-950 dark:text-gray-100;
   }
 
   /* Smooth image loading */
@@ -25,7 +26,8 @@
   .btn-ghost {
     @apply bg-white hover:bg-gray-50 text-gray-700 font-medium
            border border-gray-200 px-4 py-2 rounded-lg
-           transition-colors duration-150;
+           transition-colors duration-150
+           dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-200 dark:border-gray-700;
   }
 
   .badge {
@@ -35,6 +37,6 @@
 
   /* Price badge */
   .price-tag {
-    @apply text-brand-700 font-bold text-lg;
+    @apply text-brand-700 font-bold text-lg dark:text-brand-500;
   }
 }

@@ -38,7 +38,7 @@ export default function ProductTabs({
   return (
     <div>
       {/* ── Tab bar ──────────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
+      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 mb-6">
         {tabs.map(t => (
           <button
             key={t.id}
@@ -46,14 +46,14 @@ export default function ProductTabs({
             className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg
                         px-3 py-2 text-sm font-medium transition-all
                         ${tab === t.id
-                          ? 'bg-white shadow-sm text-gray-900'
-                          : 'text-gray-500 hover:text-gray-700'
+                          ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-white'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
                         }`}
           >
             <span>{t.label}</span>
             <span
               className={`text-xs font-bold tabular-nums ${
-                tab === t.id ? t.color : 'text-gray-400'
+                tab === t.id ? t.color : 'text-gray-400 dark:text-gray-500'
               }`}
             >
               {t.count}
@@ -64,9 +64,9 @@ export default function ProductTabs({
 
       {/* ── Product list ─────────────────────────────────────────────────────── */}
       {current.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16 text-gray-400 dark:text-gray-500">
           <p className="text-4xl mb-3">{emptyMessages[tab].icon}</p>
-          <p className="text-base font-medium text-gray-500">
+          <p className="text-base font-medium text-gray-500 dark:text-gray-400">
             {emptyMessages[tab].title}
           </p>
           <p className="text-sm mt-1">{emptyMessages[tab].sub}</p>

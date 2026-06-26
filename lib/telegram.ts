@@ -60,11 +60,13 @@ export async function downloadTelegramFile(fileId: string): Promise<string> {
 
 // ── Pre-built message templates (mirrors lib/notify.ts) ────────────────────────
 
-export function productListedMessage(name: string, price: number | null, productUrl: string) {
+export function productListedMessage(name: string, price: number | null, productUrl: string, photoCount?: number) {
   const priceText = price ? `₦${price.toLocaleString()}` : 'No price set'
+  const photoLine = photoCount && photoCount > 1 ? `📸 ${photoCount} photos\n` : ''
   return (
     `✅ New product listed!\n\n` +
     `📦 ${name}\n` +
+    photoLine +
     `💰 ${priceText}\n\n` +
     `View on store: ${productUrl}`
   )

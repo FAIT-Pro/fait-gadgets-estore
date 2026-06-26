@@ -102,7 +102,7 @@ export default function EditForm({ product }: { product: Product }) {
       {/* ── Photo section ────────────────────────────────────────────────────── */}
       <div>
         {images.length > 0 && (
-          <div className="relative aspect-video rounded-2xl overflow-hidden bg-gray-100 shadow-sm mb-2">
+          <div className="relative aspect-video rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 shadow-sm mb-2">
             <Image
               src={images[selectedIdx] || images[0]}
               alt="Product photo"
@@ -156,9 +156,9 @@ export default function EditForm({ product }: { product: Product }) {
               <label
                 htmlFor="edit-add-photo"
                 title="Upload a new photo"
-                className={`w-14 h-14 rounded-xl border-2 border-dashed border-gray-200
+                className={`w-14 h-14 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700
                             flex items-center justify-center cursor-pointer
-                            hover:border-brand-300 hover:bg-brand-50 transition-colors
+                            hover:border-brand-300 dark:hover:border-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors
                             ${addingPhoto ? 'opacity-50 pointer-events-none' : ''}`}
               >
                 {addingPhoto
@@ -171,9 +171,9 @@ export default function EditForm({ product }: { product: Product }) {
                 type="button"
                 onClick={() => setShowPicker(true)}
                 title="Pick from image library"
-                className="w-14 h-14 rounded-xl border-2 border-dashed border-gray-200
+                className="w-14 h-14 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700
                            flex items-center justify-center cursor-pointer
-                           hover:border-brand-300 hover:bg-brand-50 transition-colors"
+                           hover:border-brand-300 dark:hover:border-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
               >
                 <svg width="18" height="18" fill="none" viewBox="0 0 24 24"
                      stroke="#16a34a" strokeWidth={1.8}>
@@ -194,32 +194,33 @@ export default function EditForm({ product }: { product: Product }) {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
-          <p className="text-red-600 text-xs">{error}</p>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl px-4 py-2.5">
+          <p className="text-red-600 dark:text-red-400 text-xs">{error}</p>
         </div>
       )}
 
       {/* ── Product Name ──────────────────────────────────────────────────────── */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Product Name <span className="text-red-400">*</span>
         </label>
         <input
           type="text"
           value={name}
           onChange={e => setName(e.target.value)}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm
+          className="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800
+                     dark:text-gray-100 rounded-xl px-4 py-3 text-sm
                      focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
       </div>
 
       {/* ── Price + Currency ──────────────────────────────────────────────────── */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Price <span className="text-gray-400 font-normal">(leave blank if negotiable)</span>
         </label>
         <div className="flex gap-2">
-          <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+          <div className="flex rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             {(['NGN', 'USD'] as const).map(c => (
               <button
                 key={c}
@@ -228,7 +229,7 @@ export default function EditForm({ product }: { product: Product }) {
                 className={`px-4 py-3 text-sm font-medium transition-colors ${
                   currency === c
                     ? 'bg-brand-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 {c === 'NGN' ? '₦ NGN' : '$ USD'}
@@ -242,7 +243,8 @@ export default function EditForm({ product }: { product: Product }) {
             value={price}
             onChange={e => setPrice(e.target.value)}
             placeholder="0.00"
-            className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm
+            className="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800
+                       dark:text-gray-100 rounded-xl px-4 py-3 text-sm
                        focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </div>
@@ -250,12 +252,12 @@ export default function EditForm({ product }: { product: Product }) {
 
       {/* ── Category ──────────────────────────────────────────────────────────── */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
         <select
           value={category}
           onChange={e => setCategory(e.target.value)}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm
-                     focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+          className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm
+                     focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white dark:bg-gray-800 dark:text-gray-100"
         >
           {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -263,16 +265,17 @@ export default function EditForm({ product }: { product: Product }) {
 
       {/* ── Description ───────────────────────────────────────────────────────── */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
         <textarea
           value={description}
           onChange={e => setDescription(e.target.value)}
           rows={4}
           placeholder="Describe your product…"
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm
+          className="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800
+                     dark:text-gray-100 rounded-xl px-4 py-3 text-sm
                      focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
         />
-        <p className="text-xs text-gray-400 mt-1 text-right">{description.length} characters</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 text-right">{description.length} characters</p>
       </div>
 
       {/* ── Action buttons ────────────────────────────────────────────────────── */}

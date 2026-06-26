@@ -43,7 +43,8 @@ export default function SearchBar() {
         defaultValue={searchParams.get('q') ?? ''}
         onChange={handleChange}
         placeholder="Search products…"
-        className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 pr-8
+        className="text-sm border border-gray-200 dark:border-gray-700 dark:bg-gray-800
+                   dark:text-gray-100 dark:placeholder-gray-500 rounded-lg px-3 py-1.5 pr-8
                    focus:outline-none focus:ring-2 focus:ring-brand-500 w-36 md:w-52"
       />
       {isPending && (

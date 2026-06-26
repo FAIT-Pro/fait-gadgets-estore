@@ -207,10 +207,11 @@ export default function UploadForm() {
         <label
           htmlFor="photo-input"
           className="flex flex-col items-center justify-center
-                     border-2 border-dashed border-brand-300 rounded-2xl
-                     bg-white cursor-pointer hover:bg-brand-50 transition-colors p-10 text-center"
+                     border-2 border-dashed border-brand-300 dark:border-brand-700 rounded-2xl
+                     bg-white dark:bg-gray-900 cursor-pointer hover:bg-brand-50 dark:hover:bg-brand-900/20
+                     transition-colors p-10 text-center"
         >
-          <div className="w-16 h-16 bg-brand-100 rounded-full flex items-center justify-center mb-4">
+          <div className="w-16 h-16 bg-brand-100 dark:bg-brand-900/40 rounded-full flex items-center justify-center mb-4">
             <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#16a34a" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round"
                 d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/>
@@ -218,23 +219,23 @@ export default function UploadForm() {
                 d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"/>
             </svg>
           </div>
-          <p className="text-base font-semibold text-gray-800">Tap to take a photo</p>
-          <p className="text-sm text-gray-400 mt-1">or choose from your gallery</p>
-          <p className="text-xs text-gray-300 mt-4">AI will automatically read the product details</p>
+          <p className="text-base font-semibold text-gray-800 dark:text-gray-100">Tap to take a photo</p>
+          <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">or choose from your gallery</p>
+          <p className="text-xs text-gray-300 dark:text-gray-600 mt-4">AI will automatically read the product details</p>
         </label>
 
         {/* Library picker link */}
         <div className="mt-4 text-center">
-          <span className="text-xs text-gray-400">or </span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">or </span>
           <button
             onClick={() => setShowPicker(true)}
-            className="text-xs text-brand-600 hover:underline font-medium"
+            className="text-xs text-brand-600 dark:text-brand-400 hover:underline font-medium"
           >
             📁 pick from your image library
           </button>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-2">Supported: JPG, PNG, WEBP · Max 6 photos per product</p>
+        <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-2">Supported: JPG, PNG, WEBP · Max 6 photos per product</p>
 
         {showPicker && (
           <ImagePickerModal
@@ -253,7 +254,7 @@ export default function UploadForm() {
     return (
       <div className="space-y-6">
         {previews[0] && (
-          <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 shadow-sm">
+          <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 shadow-sm">
             <Image src={previews[0]} alt="Uploading…" fill className="object-cover" />
             <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-3">
               <div className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full animate-spin" />
@@ -263,7 +264,7 @@ export default function UploadForm() {
         )}
         <div className="space-y-3 animate-pulse">
           {[80, 60, 100, 50].map((w, i) => (
-            <div key={i} className="h-10 bg-gray-200 rounded-lg" style={{ width: `${w}%` }} />
+            <div key={i} className="h-10 bg-gray-200 dark:bg-gray-700 rounded-lg" style={{ width: `${w}%` }} />
           ))}
         </div>
       </div>
@@ -282,7 +283,7 @@ export default function UploadForm() {
       <div>
         {/* Main large photo */}
         {displayPreviews.length > 0 && (
-          <div className="relative aspect-video rounded-2xl overflow-hidden bg-gray-100 shadow-sm mb-2">
+          <div className="relative aspect-video rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 shadow-sm mb-2">
             <Image
               src={displayPreviews[selectedIdx] || displayPreviews[0]}
               alt="Product photo"
@@ -343,9 +344,9 @@ export default function UploadForm() {
                 <label
                   htmlFor="extra-photo-input"
                   title="Upload a new photo"
-                  className={`w-14 h-14 rounded-xl border-2 border-dashed border-gray-200
+                  className={`w-14 h-14 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700
                               flex items-center justify-center cursor-pointer
-                              hover:border-brand-300 hover:bg-brand-50 transition-colors
+                              hover:border-brand-300 dark:hover:border-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors
                               ${addingPhoto ? 'opacity-50 pointer-events-none' : ''}`}
                 >
                   {addingPhoto ? (
@@ -363,9 +364,9 @@ export default function UploadForm() {
                   type="button"
                   onClick={() => setShowPicker(true)}
                   title="Pick from image library"
-                  className="w-14 h-14 rounded-xl border-2 border-dashed border-gray-200
+                  className="w-14 h-14 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700
                              flex items-center justify-center cursor-pointer
-                             hover:border-brand-300 hover:bg-brand-50 transition-colors"
+                             hover:border-brand-300 dark:hover:border-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
                 >
                   <svg width="18" height="18" fill="none" viewBox="0 0 24 24"
                        stroke="#16a34a" strokeWidth={1.8}>
@@ -379,7 +380,7 @@ export default function UploadForm() {
         )}
 
         {draft.imageUrls.length < 6 && (
-          <p className="mt-1.5 text-xs text-gray-400">
+          <p className="mt-1.5 text-xs text-gray-400 dark:text-gray-500">
             <span className="font-medium">+</span> upload new &nbsp;·&nbsp;
             <span className="font-medium">⊞</span> pick from library
           </p>
@@ -387,7 +388,7 @@ export default function UploadForm() {
 
         <button
           onClick={handleReset}
-          className="mt-2 text-xs text-brand-600 hover:underline flex items-center gap-1"
+          className="mt-2 text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
         >
           <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -407,9 +408,9 @@ export default function UploadForm() {
 
       {/* ── AI notice ──────────────────────────────────────────────────────── */}
       {!error && draft.name && (
-        <div className="flex items-start gap-2 bg-brand-50 border border-brand-100 rounded-xl px-3 py-2">
-          <span className="text-brand-600 text-sm">✨</span>
-          <p className="text-xs text-brand-700">
+        <div className="flex items-start gap-2 bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-800 rounded-xl px-3 py-2">
+          <span className="text-brand-600 dark:text-brand-400 text-sm">✨</span>
+          <p className="text-xs text-brand-700 dark:text-brand-400">
             AI filled in these details from your photo. Review and edit anything before saving.
           </p>
         </div>
@@ -417,14 +418,14 @@ export default function UploadForm() {
 
       {/* ── Error ──────────────────────────────────────────────────────────── */}
       {error && (
-        <div className="bg-red-50 border border-red-100 rounded-xl px-3 py-2">
-          <p className="text-xs text-red-600">{error}</p>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl px-3 py-2">
+          <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
         </div>
       )}
 
       {/* ── Product Name ───────────────────────────────────────────────────── */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Product Name <span className="text-red-400">*</span>
         </label>
         <input
@@ -432,18 +433,19 @@ export default function UploadForm() {
           value={draft.name}
           onChange={e => setDraft(d => ({ ...d, name: e.target.value }))}
           placeholder="e.g. Samsung Galaxy Buds Pro"
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm
+          className="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800
+                     dark:text-gray-100 dark:placeholder-gray-500 rounded-xl px-4 py-3 text-sm
                      focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
       </div>
 
       {/* ── Price + Currency ───────────────────────────────────────────────── */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Price <span className="text-gray-400 font-normal">(leave blank if negotiable)</span>
         </label>
         <div className="flex gap-2">
-          <div className="flex rounded-xl border border-gray-200 overflow-hidden">
+          <div className="flex rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             {(['NGN', 'USD'] as const).map(c => (
               <button
                 key={c}
@@ -452,7 +454,7 @@ export default function UploadForm() {
                 className={`px-4 py-3 text-sm font-medium transition-colors ${
                   draft.currency === c
                     ? 'bg-brand-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 {c === 'NGN' ? '₦ NGN' : '$ USD'}
@@ -466,7 +468,8 @@ export default function UploadForm() {
             value={draft.price}
             onChange={e => setDraft(d => ({ ...d, price: e.target.value }))}
             placeholder="0.00"
-            className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm
+            className="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800
+                       dark:text-gray-100 dark:placeholder-gray-500 rounded-xl px-4 py-3 text-sm
                        focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </div>
@@ -474,12 +477,12 @@ export default function UploadForm() {
 
       {/* ── Category ───────────────────────────────────────────────────────── */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
         <select
           value={draft.category}
           onChange={e => setDraft(d => ({ ...d, category: e.target.value }))}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm
-                     focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
+          className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-sm
+                     focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white dark:bg-gray-800 dark:text-gray-100"
         >
           {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -487,16 +490,17 @@ export default function UploadForm() {
 
       {/* ── Description ────────────────────────────────────────────────────── */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
         <textarea
           value={draft.description}
           onChange={e => setDraft(d => ({ ...d, description: e.target.value }))}
           rows={4}
           placeholder="Describe your product — features, condition, what's included…"
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm
+          className="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800
+                     dark:text-gray-100 dark:placeholder-gray-500 rounded-xl px-4 py-3 text-sm
                      focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
         />
-        <p className="text-xs text-gray-400 mt-1 text-right">{draft.description.length} characters</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 text-right">{draft.description.length} characters</p>
       </div>
 
       {/* ── Action buttons ─────────────────────────────────────────────────── */}

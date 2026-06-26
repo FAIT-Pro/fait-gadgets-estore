@@ -73,18 +73,18 @@ export default function BuyRequestModal({ productId, productName, price, onClose
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       {/* Sheet (slides up on mobile, centered on desktop) */}
-      <div className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl
+      <div className="w-full sm:max-w-md bg-white dark:bg-gray-900 rounded-t-3xl sm:rounded-2xl
                       shadow-2xl overflow-hidden">
 
         {/* Header */}
-        <div className="px-5 pt-5 pb-4 border-b border-gray-100 flex items-start justify-between">
+        <div className="px-5 pt-5 pb-4 border-b border-gray-100 dark:border-gray-800 flex items-start justify-between">
           <div>
-            <h2 className="font-bold text-gray-900 text-lg">Request to Buy</h2>
-            <p className="text-sm text-gray-500 mt-0.5 truncate">{productName}</p>
+            <h2 className="font-bold text-gray-900 dark:text-white text-lg">Request to Buy</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 truncate">{productName}</p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors mt-0.5"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors mt-0.5"
             aria-label="Close"
           >
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -96,12 +96,12 @@ export default function BuyRequestModal({ productId, productName, price, onClose
         {success ? (
           // ── Success state ───────────────────────────────────────────────────
           <div className="px-5 py-10 text-center">
-            <div className="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center
+            <div className="w-16 h-16 bg-brand-50 dark:bg-brand-900/30 rounded-full flex items-center justify-center
                             mx-auto mb-4 text-3xl">
               ✅
             </div>
-            <h3 className="font-bold text-gray-900 text-xl mb-2">Request sent!</h3>
-            <p className="text-gray-500 text-sm leading-relaxed">
+            <h3 className="font-bold text-gray-900 dark:text-white text-xl mb-2">Request sent!</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">
               The seller will contact you on WhatsApp or phone.
               Keep an eye out for a message from us!
             </p>
@@ -119,21 +119,21 @@ export default function BuyRequestModal({ productId, productName, price, onClose
 
             {/* Price reminder */}
             {price && (
-              <div className="flex items-center gap-2 bg-brand-50 border border-brand-100
+              <div className="flex items-center gap-2 bg-brand-50 dark:bg-brand-900/20 border border-brand-100 dark:border-brand-800
                               rounded-xl px-4 py-2.5">
-                <span className="text-brand-700 font-bold text-base">{price}</span>
-                <span className="text-brand-600 text-xs">· seller will confirm on contact</span>
+                <span className="text-brand-700 dark:text-brand-400 font-bold text-base">{price}</span>
+                <span className="text-brand-600 dark:text-brand-500 text-xs">· seller will confirm on contact</span>
               </div>
             )}
 
             {error && (
-              <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
-                <p className="text-red-600 text-xs">{error}</p>
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-xl px-4 py-2.5">
+                <p className="text-red-600 dark:text-red-400 text-xs">{error}</p>
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Your name <span className="text-red-400">*</span>
               </label>
               <input
@@ -142,13 +142,14 @@ export default function BuyRequestModal({ productId, productName, price, onClose
                 onChange={e => setName(e.target.value)}
                 placeholder="e.g. Amaka"
                 autoFocus
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm
+                className="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800
+                           dark:text-gray-100 dark:placeholder-gray-500 rounded-xl px-4 py-3 text-sm
                            focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 WhatsApp / phone number <span className="text-red-400">*</span>
               </label>
               <input
@@ -156,13 +157,14 @@ export default function BuyRequestModal({ productId, productName, price, onClose
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
                 placeholder="e.g. 08012345678"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm
+                className="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800
+                           dark:text-gray-100 dark:placeholder-gray-500 rounded-xl px-4 py-3 text-sm
                            focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Message to seller <span className="text-gray-400 font-normal">(optional)</span>
               </label>
               <textarea
@@ -170,7 +172,8 @@ export default function BuyRequestModal({ productId, productName, price, onClose
                 onChange={e => setMessage(e.target.value)}
                 rows={2}
                 placeholder="Any questions? e.g. Is this still available?"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm
+                className="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800
+                           dark:text-gray-100 dark:placeholder-gray-500 rounded-xl px-4 py-3 text-sm
                            focus:outline-none focus:ring-2 focus:ring-brand-500 resize-none"
               />
             </div>

@@ -8,6 +8,7 @@ import Link               from 'next/link'
 import { notFound }       from 'next/navigation'
 import EnquireButton      from '@/components/EnquireButton'
 import ImageGallery       from '@/components/ImageGallery'
+import ThemeToggle        from '@/components/ThemeToggle'
 import type { Metadata }  from 'next'
 import type { Product }   from '@/lib/supabase'
 
@@ -65,17 +66,18 @@ export default async function ProductPage({
   if (p.status === 'draft') notFound()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
 
       {/* ── Navigation bar ──────────────────────────────────────────────────── */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Link href="/" className="text-gray-500 hover:text-gray-700">
+          <Link href="/" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
             </svg>
           </Link>
-          <h1 className="font-semibold text-gray-800 truncate">{p.name}</h1>
+          <h1 className="font-semibold text-gray-800 dark:text-gray-100 truncate flex-1">{p.name}</h1>
+          <ThemeToggle />
         </div>
       </header>
 
@@ -89,22 +91,22 @@ export default async function ProductPage({
         />
 
         {/* ── Product details card ─────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div>
               <span className={`badge text-xs mb-2 ${catStyle}`}>{p.category}</span>
-              <h2 className="text-xl font-bold text-gray-900">{p.name}</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">{p.name}</h2>
             </div>
             <div className="text-right shrink-0">
-              <p className="text-2xl font-bold text-brand-700">{formattedPrice}</p>
+              <p className="text-2xl font-bold text-brand-700 dark:text-brand-500">{formattedPrice}</p>
               {p.status === 'available' && (
-                <span className="text-xs text-green-600 font-medium">✓ Available</span>
+                <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ Available</span>
               )}
             </div>
           </div>
 
           {p.description && (
-            <p className="text-gray-600 text-sm leading-relaxed mb-5">{p.description}</p>
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-5">{p.description}</p>
           )}
 
           <div className="flex gap-3">
@@ -115,7 +117,7 @@ export default async function ProductPage({
                 formattedPrice={formattedPrice}
               />
             ) : (
-              <div className="flex-1 text-center py-3 bg-gray-100 rounded-xl text-gray-400 font-medium">
+              <div className="flex-1 text-center py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-400 dark:text-gray-500 font-medium">
                 This item has been sold
               </div>
             )}
@@ -123,7 +125,7 @@ export default async function ProductPage({
         </div>
 
         <div className="text-center mt-6">
-          <Link href="/" className="text-sm text-brand-600 hover:underline">
+          <Link href="/" className="text-sm text-brand-600 dark:text-brand-400 hover:underline">
             ← Browse more products
           </Link>
         </div>

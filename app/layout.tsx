@@ -27,8 +27,29 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the inline script below can add class="dark"
+    // to <html> before React hydrates, which would otherwise be flagged as a
+    // server/client mismatch — this is the standard, expected trade-off for
+    // dark mode without a flash of the wrong theme on page load.
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Runs before first paint: applies the saved (or system) theme to
+            <html> immediately, so the page never flashes light then dark. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var stored = localStorage.getItem('theme');
+                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  if (stored === 'dark' || (!stored && prefersDark)) {
+                    document.documentElement.classList.add('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#16a34a" />
         <meta name="mobile-web-app-capable" content="yes" />

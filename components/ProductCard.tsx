@@ -99,11 +99,11 @@ export default function ProductCard({ product }: Props) {
 
   return (
     <Link href={`/product/${product.id}`} className="group block">
-      <div className="bg-white rounded-2xl overflow-hidden shadow-sm
-                      hover:shadow-md transition-shadow duration-200 border border-gray-100">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm
+                      hover:shadow-md transition-shadow duration-200 border border-gray-100 dark:border-gray-800">
 
         {/* ── Product Image ─────────────────────────────────────────── */}
-        <div className="relative aspect-square bg-gray-100">
+        <div className="relative aspect-square bg-gray-100 dark:bg-gray-800">
           {product.image_url ? (
             <Image
               src={product.image_url}
@@ -159,7 +159,7 @@ export default function ProductCard({ product }: Props) {
           <span className={`badge text-[10px] mb-1 ${catStyle}`}>
             {product.category}
           </span>
-          <h3 className="text-sm font-semibold text-gray-900 leading-tight truncate">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white leading-tight truncate">
             {product.name}
           </h3>
           <p className="price-tag mt-1 text-base">

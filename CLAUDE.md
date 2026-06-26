@@ -3,7 +3,7 @@
 This file tells Claude Code everything it needs to know about this project.
 Read this fully before making any changes.
 
-**Last verified:** 2026-06-22 (Session 7 — Telegram bot built, live-tested, deployed to production)
+**Last verified:** 2026-06-25 (Session 8 — Telegram multi-photo album bug fixed)
 
 ---
 
@@ -23,13 +23,15 @@ Owner logs in to /admin → taps "Add Product" → takes/uploads a photo → Gem
 reads it → fields pre-filled → owner reviews and edits → Save as Draft or Publish Now.
 This is the main input channel and always works with no external dependencies.
 
-**Channel C — Telegram Bot (built and live, Session 7):**
-Owner forwards product photo to the Telegram bot → same Gemini + Cloudinary + Supabase
+**Channel C — Telegram Bot (built and live, Session 7; multi-photo fixed Session 8):**
+Owner forwards product photo(s) to the Telegram bot → same Gemini + Cloudinary + Supabase
 pipeline → product listed (auto-published, `status: 'available'`) → seller gets a Telegram
 confirmation in the same chat. Sending the text `SOLD` marks the most recent available
 product as sold. Telegram requires zero business verification, no token expiry. Currently
 runs alongside Meta (not yet retired) — WhatsApp still stays as the customer-facing channel
 for buyers; Telegram is the seller's listing tool.
+Sending several photos at once (a Telegram "album") now correctly merges into ONE product
+with all photos attached — see Rule 13 below for how this works.
 
 All three channels use the same Gemini + Cloudinary + Supabase pipeline.
 
@@ -50,7 +52,7 @@ All three channels use the same Gemini + Cloudinary + Supabase pipeline.
 | Image storage | Cloudinary | Free CDN, auto-optimization |
 | AI processing | Google Gemini 2.5 Flash | Reads image + caption → structured product data |
 | WhatsApp bot | Meta WhatsApp Cloud API | BLOCKED — Business verification rejected. Webhook code exists, not functional |
-| Telegram bot | Telegram Bot API | LIVE ✅ (Session 7) — listing pipeline + SOLD command, deployed to production |
+| Telegram bot | Telegram Bot API | LIVE ✅ (Session 7) — listing pipeline + SOLD command + multi-photo album merging (Session 8) |
 | Seller notifications | Meta WhatsApp Cloud API | Still active for non-Telegram events (likes/saves/enquiries) — not yet retired, may fail when token expires |
 | Live chat | Tawk.to | Widget on storefront — CONFIGURED ✅ (NEXT_PUBLIC_TAWKTO_ID set) |
 | Hosting | Vercel | Free, deploys automatically from Git |
@@ -87,6 +89,7 @@ estore/
 │   ├── telegram.ts         ← Telegram bot helpers (added Session 7)
 │   │                          sendTelegramMessage(chatId, text) — mirrors notifySeller()
 │   │                          downloadTelegramFile(fileId) — file_id → file_path → base64 dataUri
+│   │                          productListedMessage() takes an optional photoCount (Session 8)
 │   │                          Exports: sendTelegramMessage(), downloadTelegramFile(), productListedMessage()
 │   └── auth.ts             ← Admin auth helpers
 │                              isAdminAuthed() — for Server Component pages
@@ -139,9 +142,13 @@ estore/
 │       ├── telegram/
 │       │   └── route.ts    ← POST only (added Session 7, LIVE in production)
 │       │                      Incoming Telegram messages → list product or handle SOLD command
-│       │                      Photo → downloadTelegramFile() → uploadProductImage() → extractProductInfo()
+│       │                      Single photo → downloadTelegramFile() → uploadProductImage() → extractProductInfo()
 │       │                      → Supabase insert (status: 'available') → sendTelegramMessage() confirmation
+│       │                      Multi-photo album (message.media_group_id set, Session 8) →
+│       │                      handleAlbumPhoto() stages each photo in telegram_media_groups,
+│       │                      debounces 2s, merges into ONE product once the album finishes arriving
 │       │                      Always returns HTTP 200, same rule as the Meta webhook
+│       │                      export const maxDuration = 60 (debounce wait + Gemini exceeds the 10s default)
 │       ├── track/
 │       │   └── route.ts    ← POST: logs visitor interactions (view/like/save/enquiry)
 │       │                      Notifies seller for like, save, enquiry (not views)
@@ -199,7 +206,7 @@ Each session adds new tables/columns — always run the full file (all statement
 | image_url | text | Cloudinary CDN URL (primary image) |
 | image_urls | text[] | Array of all product image URLs (first = primary) |
 | status | text | 'available', 'sold', or 'draft' — no CHECK constraint, plain text |
-| wa_message_id | text | External message ID for deduplication — Meta media ID, or Telegram message ID prefixed `tg_` (added Session 7) |
+| wa_message_id | text | External message ID for deduplication — Meta media ID, Telegram message ID prefixed `tg_`, or Telegram album ID prefixed `tg_group_` (added Session 8) |
 | created_at | timestamptz | Auto set |
 | updated_at | timestamptz | Auto-updated via trigger |
 
@@ -222,6 +229,20 @@ Each session adds new tables/columns — always run the full file (all statement
 | buyer_phone | text | Buyer's WhatsApp/phone number (required) |
 | message | text | Optional message to seller |
 | created_at | timestamptz | Auto set |
+
+### Table: `telegram_media_groups` (added Session 8 — server-only, no public policies)
+| Column | Type | Notes |
+|---|---|---|
+| media_group_id | text | Primary key — Telegram's album ID |
+| chat_id | text | Telegram chat ID, used to send the confirmation once finalized |
+| image_urls | text[] | Cloudinary URLs collected so far for this album |
+| caption | text | First caption seen across the album's photos |
+| update_count | integer | Bumped atomically by `append_telegram_media_group()` on every photo |
+| processed | boolean | Set true once one photo's debounce wait elapses with no further updates |
+| created_at | timestamptz | Auto set |
+
+Used only by `app/api/telegram/route.ts` to merge a multi-photo Telegram album into one
+product. See Rule 13.
 
 ### View: `product_stats`
 Joins products with interaction counts. Use for analytics:
@@ -275,7 +296,7 @@ NEXT_PUBLIC_SITE_URL=https://fait-gadgets-estore.vercel.app        ← SET
 NEXT_PUBLIC_TAWKTO_ID=6a2a9f25f.../1jqr7rbgv                       ← SET ✅
 
 # ── ADMIN DASHBOARD ───────────────────────────────────
-ADMIN_PASSWORD=FaitGadg3ts#2026                                     ← SET ✅
+ADMIN_PASSWORD="19@George80"                                        ← SET ✅ (changed Session 8 — quote unquoted special chars, see Rule 14)
 
 # ── TELEGRAM BOT (Session 7 — LIVE) ───────────────────
 TELEGRAM_BOT_TOKEN=8831963972:AAFopI9...                            ← SET ✅
@@ -369,6 +390,47 @@ Telegram's file server (`api.telegram.org/file/bot<token>/<file_path>`) always r
 that MIME type with a 400 error. `lib/telegram.ts`'s `downloadTelegramFile()` infers the MIME
 type from the file extension in `file_path` instead (Telegram photos are always `.jpg`).
 
+### 13. Telegram multi-photo albums — each photo is a SEPARATE webhook call (Session 8)
+When a seller selects several photos at once in Telegram, Telegram does NOT send one webhook
+call with multiple images. It sends one POST per photo, all sharing the same
+`message.media_group_id`, but only one of them carries the caption. Before Session 8 this
+created one product PER PHOTO, with price/description landing on only one of them.
+
+Fix, in `app/api/telegram/route.ts`'s `handleAlbumPhoto()`:
+1. Each incoming album photo is uploaded to Cloudinary immediately (no Gemini yet), then
+   appended to a `telegram_media_groups` row via the atomic `append_telegram_media_group()`
+   Postgres function (avoids a read-then-write race when photos arrive milliseconds apart).
+2. The handler then waits `MEDIA_GROUP_WAIT_MS` (2000ms) and tries to atomically flip
+   `processed = false → true` **only if** the row's `update_count` still matches the value
+   it got right after appending. If a later photo bumped the count during the wait, the
+   claim's `WHERE` clause matches nothing and this invocation just exits — whichever photo
+   turns out to be the last one to arrive is the one whose claim succeeds.
+3. Whoever successfully claims the row reads its `image_urls` (all photos collected so far,
+   guaranteed up to date because the claim is a single atomic UPDATE) and `caption`, runs
+   Gemini on the FIRST photo only (same "first photo → AI, rest → extra" rule as the Admin
+   Upload multi-image flow), and inserts ONE product with `wa_message_id = tg_group_<id>`.
+4. A photo arriving more than 2s after the rest (rare) is caught by an early `processed`
+   check and attached directly to the already-created product via `attachLatePhotoToProduct()`
+   instead of creating a duplicate listing.
+
+`export const maxDuration = 60` is set on the route because the debounce wait plus a Gemini
+call comfortably exceeds Vercel's 10s default function timeout.
+
+**Setup required:** run the updated `schema.sql` in Supabase → SQL Editor — it adds the
+`telegram_media_groups` table and the `append_telegram_media_group()` function. Without this,
+multi-photo Telegram uploads will error (single-photo uploads are unaffected).
+
+### 14. Quote env var values that contain `#` in `.env.local` (Session 8)
+Next.js's env loader (`@next/env`, dotenv-compatible) treats an unquoted `#` as the start of
+a comment — `ADMIN_PASSWORD=FaitGadg3ts#2026` was silently loaded locally as just
+`FaitGadg3ts`, dropping `#2026`. This caused admin login to fail locally with the password
+documented as correct, while production worked fine (Vercel's dashboard stores env vars as
+raw strings with no comment-stripping). Fix: wrap any value containing `#` (or other special
+characters) in quotes — `ADMIN_PASSWORD="FaitGadg3ts#2026"`. Verify with:
+```bash
+node -e "const {loadEnvConfig}=require('@next/env'); loadEnvConfig(process.cwd(), true); console.log(JSON.stringify(process.env.ADMIN_PASSWORD))"
+```
+
 ---
 
 ## Known Bugs
@@ -377,8 +439,11 @@ All previously known bugs have been fixed:
 
 - ✅ **BUG 1 FIXED (Session 4):** Sold products now show SOLD overlay — product detail page uses `supabaseAdmin`
 - ✅ **BUG 2 FIXED (Session 5):** Webhook signature verification active + live tested in production
+- ✅ **BUG 3 FIXED (Session 8):** Telegram multi-photo album → was creating one product per photo
+  (price/description landing on only one). Fixed via `telegram_media_groups` staging + debounce
+  merge — see Rule 13. **Needs `schema.sql` re-run in Supabase before this fix is active.**
 
-No remaining known bugs.
+No remaining known bugs (pending the schema.sql migration for BUG 3, see above).
 
 ---
 
@@ -477,7 +542,7 @@ Telegram webhook is registered with:
 - [x] PWA manifest + SVG icon + mobile viewport meta tags
 - [x] BUG 1 fixed: sold products show SOLD overlay
 - [x] BUG 2 fixed: webhook rejects forged requests (HMAC-SHA256, live tested)
-- [x] ADMIN_PASSWORD strengthened to `FaitGadg3ts#2026`
+- [x] ADMIN_PASSWORD strengthened to `FaitGadg3ts#2026` (Session 5), changed to `19@George80` (Session 8)
 - [x] Tawk.to live chat widget active on storefront
 - [x] All code committed, snapshot branch `snapshot-v5-session5-complete` created
 - [x] GitHub auth fix: `gh auth switch --user FAIT-Pro` (must be repeated each terminal session)
@@ -488,6 +553,10 @@ Telegram webhook is registered with:
   - Live-tested locally via ngrok, then re-tested against production after deploy
   - Found and fixed a bug during testing: Telegram's file server's `application/octet-stream`
     Content-Type broke Gemini — fixed by inferring MIME type from file extension instead
+- [x] **Telegram multi-photo album merging** (Session 8) — `handleAlbumPhoto()` in
+  `app/api/telegram/route.ts` + `telegram_media_groups` table + `append_telegram_media_group()`
+  Postgres function. Sending several photos at once now creates ONE product with all photos
+  attached, instead of one product per photo (BUG 3, see Known Bugs)
 
 ---
 
@@ -503,7 +572,6 @@ Telegram webhook is registered with:
 ### Other features
 - [ ] Analytics page — use existing `product_stats` Supabase view
 - [ ] "Mark specific product as SOLD" by product ID via Telegram/WhatsApp command
-- [ ] Bulk upload (multiple images in one message)
 - [ ] Email notifications via Resend (alternative/fallback to Telegram)
 - [ ] Order / reservation system with payment
 

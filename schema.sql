@@ -48,9 +48,53 @@ create table if not exists enquiries (
 alter table enquiries enable row level security;
 
 -- Anyone can submit an enquiry
+-- (drop-then-create makes this safe to re-run — "create policy" has no IF NOT EXISTS)
+drop policy if exists "Public can submit enquiries" on enquiries;
 create policy "Public can submit enquiries"
   on enquiries for insert
   with check (true);
+
+-- ── 3b. TELEGRAM MEDIA GROUP STAGING TABLE ───────────
+-- Telegram sends each photo in a multi-photo album as a SEPARATE webhook call,
+-- all sharing the same media_group_id but only one carrying the caption.
+-- This table buffers those photos until the album finishes arriving, so they
+-- can be merged into ONE product (mirrors the Admin Upload multi-photo flow).
+-- Server-only — never read by the storefront (no public policies = fully locked).
+create table if not exists telegram_media_groups (
+  media_group_id text        primary key,
+  chat_id        text        not null,
+  image_urls     text[]      not null default '{}',
+  caption        text,
+  update_count   integer     not null default 0,
+  processed      boolean     not null default false,
+  created_at     timestamptz default now()
+);
+
+alter table telegram_media_groups enable row level security;
+
+-- Atomically appends a photo to a media group and bumps update_count.
+-- Used by app/api/telegram/route.ts to avoid a read-then-write race when
+-- multiple album photos arrive within milliseconds of each other.
+create or replace function append_telegram_media_group(
+  p_media_group_id text,
+  p_chat_id text,
+  p_image_url text,
+  p_caption text
+) returns integer as $$
+declare
+  v_count integer;
+begin
+  insert into telegram_media_groups (media_group_id, chat_id, image_urls, caption, update_count)
+  values (p_media_group_id, p_chat_id, array[p_image_url], nullif(p_caption, ''), 1)
+  on conflict (media_group_id) do update
+    set image_urls   = telegram_media_groups.image_urls || p_image_url,
+        caption       = coalesce(telegram_media_groups.caption, nullif(p_caption, '')),
+        update_count  = telegram_media_groups.update_count + 1
+  returning update_count into v_count;
+
+  return v_count;
+end;
+$$ language plpgsql;
 
 -- ── 4. ROW LEVEL SECURITY ────────────────────────────
 -- Controls who can read/write each table
@@ -59,11 +103,14 @@ alter table products     enable row level security;
 alter table interactions enable row level security;
 
 -- Anyone visiting the website can see available products
+-- (drop-then-create makes this safe to re-run — "create policy" has no IF NOT EXISTS)
+drop policy if exists "Public can view available products" on products;
 create policy "Public can view available products"
   on products for select
   using (status = 'available');
 
 -- Anyone can log an interaction (like, view, save)
+drop policy if exists "Public can log interactions" on interactions;
 create policy "Public can log interactions"
   on interactions for insert
   with check (true);
@@ -79,6 +126,8 @@ begin
 end;
 $$ language plpgsql;
 
+-- (drop-then-create makes this safe to re-run — "create trigger" has no IF NOT EXISTS)
+drop trigger if exists products_updated_at on products;
 create trigger products_updated_at
   before update on products
   for each row execute function update_updated_at();
