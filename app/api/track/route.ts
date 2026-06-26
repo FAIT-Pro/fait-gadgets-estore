@@ -2,14 +2,14 @@
 // Every time a visitor does something on the store (likes, saves, enquires),
 // the browser calls this API endpoint to:
 //   1. Save the interaction to the database (for your records)
-//   2. Send you a WhatsApp notification (for likes, saves, enquiries)
+//   2. Send you a Telegram notification (for likes, saves, enquiries)
 //
 // Views are tracked silently — too many notifications for views would be noisy.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { notifySeller, visitorInteractionMessage } from '@/lib/notify'
+import { sendTelegramMessage, visitorInteractionMessage } from '@/lib/telegram'
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,12 +29,13 @@ export async function POST(request: NextRequest) {
     })
 
     // ── Notify seller for meaningful actions (not plain views) ────────────────
+    const chatId = process.env.TELEGRAM_CHAT_ID!
     if (type === 'like') {
-      await notifySeller(visitorInteractionMessage('liked', productName))
+      await sendTelegramMessage(chatId, visitorInteractionMessage('liked', productName))
     } else if (type === 'save') {
-      await notifySeller(visitorInteractionMessage('saved', productName))
+      await sendTelegramMessage(chatId, visitorInteractionMessage('saved', productName))
     } else if (type === 'enquiry') {
-      await notifySeller(visitorInteractionMessage('asked about', productName))
+      await sendTelegramMessage(chatId, visitorInteractionMessage('asked about', productName))
     }
 
     return NextResponse.json({ ok: true })

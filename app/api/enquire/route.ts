@@ -2,12 +2,12 @@
 // Receives a "Request to Buy" form submission from a visitor:
 //   1. Saves the buyer's contact details to the enquiries table
 //   2. Logs it as an 'enquiry' interaction (for stats)
-//   3. Notifies the seller (Meta WhatsApp for now — will be swapped to Telegram)
+//   3. Notifies the seller via Telegram
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse }  from 'next/server'
 import { supabaseAdmin }              from '@/lib/supabase'
-import { notifySeller }               from '@/lib/notify'
+import { sendTelegramMessage }        from '@/lib/telegram'
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
 
     // Notify the seller with full buyer details
     const msgText = message?.trim() ? `\n\nMessage: "${message.trim()}"` : ''
-    await notifySeller(
+    await sendTelegramMessage(
+      process.env.TELEGRAM_CHAT_ID!,
       `🛒 New buy request!\n\n` +
       `📦 ${productName}\n` +
       `👤 ${buyerName.trim()}\n` +

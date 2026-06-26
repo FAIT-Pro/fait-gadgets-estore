@@ -991,3 +991,120 @@ npm run build      # ✓ Compiled successfully, no new warnings
 | TypeScript / Build | ✅ 0 errors, clean |
 
 **Next session:** Continue carried-forward Session 7 priorities — retire Meta WhatsApp Cloud API (swap remaining `notifySeller()` calls to `sendTelegramMessage()`), resolve the Vercel CLI account mismatch, analytics page using `product_stats`.
+
+---
+
+---
+
+## Session 9 — 2026-06-26
+
+### Context
+Owner confirmed the Telegram and admin notifications from the Session 8 verification arrived
+correctly. Asked: should Meta WhatsApp Cloud API be replaced with Twilio, or — since Telegram
+already does what WhatsApp was meant to do — should Meta be removed entirely instead?
+
+### Decision: remove Meta, don't add Twilio
+
+Recommended and implemented full removal rather than a Twilio swap. Reasoning: Telegram
+already fully covers the listing role (Session 7) and now the edit role (Session 8); the only
+remaining Meta dependency was seller notifications for likes/saves/buy-requests, which
+Telegram can carry just as easily since it already has a live, stable, zero-cost,
+zero-verification channel to the seller. Twilio would not have avoided the original problem —
+Twilio's WhatsApp messaging is still built on the same Meta-owned WhatsApp Business Platform
+that rejected verification — so it would only have added a paid third-party account for
+something Telegram already does for free. This matched the project's own previously-planned
+next step ("Retire Meta WhatsApp Cloud API," carried forward since Session 7).
+
+### What Was Removed
+
+- `lib/notify.ts` — deleted entirely (`notifySeller()`, the old `productListedMessage()` /
+  `visitorInteractionMessage()` templates)
+- `app/api/webhook/route.ts` — deleted entirely (the Meta GET-verification + POST-listing
+  webhook; confirmed via `npm run build` that `/api/webhook` no longer appears in the route list)
+- All `META_*` env vars and `SELLER_PHONE` removed from `.env.local` and `.env.example`
+  (Vercel dashboard still needs the same variables removed manually — not done by code changes)
+- Meta references in `schema.sql`'s `wa_message_id` column comment, replaced with a note that
+  the column name is a holdover not worth a migration to rename
+
+### What Was Added/Changed
+
+- `lib/telegram.ts` gained `visitorInteractionMessage()` (moved from `lib/notify.ts`, same
+  like/save/enquiry templates)
+- `app/api/track/route.ts` and `app/api/enquire/route.ts` swapped `notifySeller()` →
+  `sendTelegramMessage(process.env.TELEGRAM_CHAT_ID!, ...)`
+- All seller notifications (new listing, like, save, enquiry, SOLD, edit confirmation) now go
+  through one single channel: Telegram
+
+### Live-Tested, Not Just Synthetically
+
+Confirmed via direct API calls against the local dev server (using the real Supabase database
+and real Telegram bot token) that:
+- `POST /api/track` with `type: "like"` sent a real "❤️ Someone liked your product" Telegram message
+- `POST /api/enquire` sent a real "🛒 New buy request!" Telegram message with buyer details
+- `POST /api/webhook` now returns `404` (route no longer exists)
+- Owner confirmed both test messages arrived in their actual Telegram chat
+
+### BUG 5 — Like/Save buttons didn't work on mobile
+
+Owner reported no way to like/save a product on mobile. Investigation found
+`components/ProductCard.tsx` nested the like/save `<button>` elements **inside** the
+product's `<Link>` (positioned `absolute` over the image, but still a DOM descendant of the
+anchor). A `<button>` nested inside an `<a>` is invalid HTML; desktop click handling tolerated
+it, but mobile browsers (iOS Safari especially, with link-press/preview gestures) handle
+nested interactive elements unreliably.
+
+**Fix:** restructured so the like/save buttons are siblings of the `<Link>`, both inside a
+shared `relative` wrapper — same visual position (`absolute top-2 right-2` over the image
+corner), no longer a descendant of the anchor. Removed the now-unnecessary `e.preventDefault()`
+calls from `handleLike`/`handleSave` (no longer needed once the button isn't nested inside
+something that would otherwise navigate). Bumped the buttons from 32px to 36px and added
+`active:scale-90` for clearer tap feedback.
+
+**Verification — installed Playwright + Chromium specifically to test this with real touch
+gestures** (a mouse `.click()` would not have caught this bug; the failure mode is specific to
+touch-event handling on nested anchors). Used a mobile emulated context (390×844 viewport,
+`hasTouch: true`, `isMobile: true`, iPhone user agent):
+- First test run showed the like button not visually updating after a tap — investigated and
+  found the real cause was unrelated to the actual fix: a stale `.next` build folder (a
+  production `npm run build` had overwritten the dev server's `.next` directory while `next
+  dev` was still running against it, so the page's own client-side JS bundles were 404ing and
+  nothing was interactive at all). Killed the stale dev server, cleared `.next`, restarted clean.
+- Re-tested: tapping the like button changed its heart icon's `fill` to `#e11d48` (red) and
+  wrote `liked_<id>` to `localStorage`, with the page URL unchanged (no accidental navigation).
+  Same result for the save (bookmark) button → `#0369a1` (blue).
+- Confirmed normal navigation still works: tapping the product name (clearly within the
+  `<Link>`, away from the floating buttons) correctly navigated to `/product/[id]`.
+- Took screenshots confirming the heart and bookmark icons render filled/colored after tapping.
+
+### TypeScript / Build
+```bash
+npx tsc --noEmit   # → 0 errors
+npm run build      # ✓ Compiled successfully — /api/webhook no longer in the route list
+```
+
+### Documentation
+- `CLAUDE.md` — extensively rewritten: "What This Project Is" now describes two channels
+  (Telegram primary, Admin Upload backup) plus a "Retired" note explaining the Meta/Twilio
+  decision; Tech Stack, File Map, Environment Variables, Key Rules (added Rule 16 for the
+  nested-button-in-link mobile bug), Known Bugs (added BUG 4 and BUG 5, which had been fixed
+  in code but not yet logged here), What Has Been Built / Not Yet Built, and Owner Context all
+  updated to remove stale Meta references
+- `USER_MANUAL.html` / `USER_MANUAL.pdf` (generated via headless Chrome from the HTML) — owner
+  requested a PDF/HTML manual instead of markdown; later updated in this same session to drop
+  all Meta-specific content (the WhatsApp-non-functional section, Meta rows in the services
+  and notifications tables, Meta/SELLER_PHONE env var rows) since Meta no longer exists in the
+  project at all, not just non-functional
+
+### Final State After Session 9
+
+| Item | Status |
+|---|---|
+| Meta WhatsApp Cloud API | ✅ Fully removed from code, env files, and docs |
+| All seller notifications | ✅ Unified on Telegram, live-tested in production |
+| BUG 5 (mobile like/save) | ✅ Fixed and verified with real touch-gesture testing |
+| `/api/webhook` route | ✅ Confirmed gone (404) |
+| TypeScript / Build | ✅ 0 errors, clean |
+| Vercel dashboard Meta env vars | ⚠️ Still need manual removal — code/local cleanup doesn't touch Vercel |
+
+**Next session:** Remove leftover `META_*` / `SELLER_PHONE` variables from the Vercel
+dashboard. Resolve the Vercel CLI account mismatch. Analytics page using `product_stats`.

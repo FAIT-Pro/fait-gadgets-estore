@@ -1,10 +1,10 @@
 // ── lib/telegram.ts ────────────────────────────────────────────────────────────
-// Telegram replacement for lib/notify.ts (Meta WhatsApp Cloud API).
-// Telegram is simpler than Meta: no business verification, no token expiry,
-// and file downloads need no auth header — just a file_id → getFile → direct URL.
+// All seller-facing notifications and the listing bot run through here — no
+// business verification, no token expiry (the Meta WhatsApp Cloud API this
+// replaced had both problems, and was retired entirely in Session 9).
 //
-// sendTelegramMessage() sends seller notifications (new listing, like, save,
-// enquiry, SOLD confirmation) — same role notifySeller() plays for Meta.
+// sendTelegramMessage() sends every seller notification: new listing, like,
+// save, enquiry, SOLD confirmation, edit confirmation.
 // downloadTelegramFile() turns an incoming photo's file_id into a base64 dataUri,
 // ready to hand to uploadProductImage() and extractProductInfo() unchanged.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,7 +58,7 @@ export async function downloadTelegramFile(fileId: string): Promise<string> {
   return `data:${mimeType};base64,${buffer.toString('base64')}`
 }
 
-// ── Pre-built message templates (mirrors lib/notify.ts) ────────────────────────
+// ── Pre-built message templates ─────────────────────────────────────────────────
 
 export function productListedMessage(name: string, price: number | null, productUrl: string, photoCount?: number) {
   const priceText = price ? `₦${price.toLocaleString()}` : 'No price set'
@@ -70,4 +70,13 @@ export function productListedMessage(name: string, price: number | null, product
     `💰 ${priceText}\n\n` +
     `View on store: ${productUrl}`
   )
+}
+
+export function visitorInteractionMessage(
+  action: 'liked' | 'saved' | 'asked about',
+  productName: string
+) {
+  const emojis = { liked: '❤️', saved: '🔖', 'asked about': '💬' }
+  const emoji  = emojis[action] || '🔔'
+  return `${emoji} Someone ${action} your product:\n\n"${productName}"\n\nCheck your store for activity.`
 }

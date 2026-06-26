@@ -3,37 +3,40 @@
 This file tells Claude Code everything it needs to know about this project.
 Read this fully before making any changes.
 
-**Last verified:** 2026-06-25 (Session 8 — Telegram multi-photo album bug fixed)
+**Last verified:** 2026-06-26 (Session 9 — Meta WhatsApp Cloud API fully removed, mobile like/save bug fixed)
 
 ---
 
 ## What This Project Is
 
-A zero-cost e-commerce storefront with three ways to list products:
+A zero-cost e-commerce storefront with two ways to list products:
 
-**Channel A — WhatsApp bot (original design, currently blocked):**
-Owner forwards WhatsApp image → Meta Cloud API delivers it to our webhook → Gemini AI
-reads it → product saved to Supabase → appears on storefront → visitor interacts →
-owner gets WhatsApp notification.
-Status: Meta Business verification was rejected. Channel exists in code but is non-functional
-until Meta approves. Plan is to replace Meta with a Telegram bot (see Channel C).
+**Channel A — Telegram Bot (primary channel; built Session 7, multi-photo fixed Session 8):**
+Owner forwards product photo(s) to the Telegram bot → Gemini + Cloudinary + Supabase pipeline
+→ product listed (auto-published, `status: 'available'`) → seller gets a Telegram
+confirmation in the same chat. Sending the text `SOLD` marks the most recent available
+product as sold. Sending any other text (e.g. `price 165000`) is interpreted by Gemini as an
+edit instruction for the most recently listed product (Session 8). Telegram requires zero
+business verification, no token expiry. Sending several photos at once (a Telegram "album")
+merges into ONE product with all photos attached — see Rule 13.
 
-**Channel B — Admin Upload Interface (primary channel):**
+**Channel B — Admin Upload Interface (backup channel):**
 Owner logs in to /admin → taps "Add Product" → takes/uploads a photo → Gemini AI
 reads it → fields pre-filled → owner reviews and edits → Save as Draft or Publish Now.
-This is the main input channel and always works with no external dependencies.
+Always works with no external dependencies, and is the only channel with Draft mode.
 
-**Channel C — Telegram Bot (built and live, Session 7; multi-photo fixed Session 8):**
-Owner forwards product photo(s) to the Telegram bot → same Gemini + Cloudinary + Supabase
-pipeline → product listed (auto-published, `status: 'available'`) → seller gets a Telegram
-confirmation in the same chat. Sending the text `SOLD` marks the most recent available
-product as sold. Telegram requires zero business verification, no token expiry. Currently
-runs alongside Meta (not yet retired) — WhatsApp still stays as the customer-facing channel
-for buyers; Telegram is the seller's listing tool.
-Sending several photos at once (a Telegram "album") now correctly merges into ONE product
-with all photos attached — see Rule 13 below for how this works.
+**Retired — Meta WhatsApp Cloud API (removed Session 9):**
+The original design routed everything through a Meta WhatsApp Business webhook. Meta
+rejected business verification, so it never worked in production; Telegram fully replaced it
+as the listing channel (Session 7) and as the seller-notification channel for likes/saves/
+buy-requests (Session 9). All Meta-related code, env vars, and the `lib/notify.ts` /
+`app/api/webhook/route.ts` files have been deleted — not just disabled. Twilio was considered
+as a replacement instead of Telegram but rejected: Twilio's WhatsApp messaging is still built
+on the same Meta-owned WhatsApp Business Platform that rejected verification, so it wouldn't
+have avoided the original problem, and Telegram already does everything WhatsApp was for, at
+zero cost with zero verification.
 
-All three channels use the same Gemini + Cloudinary + Supabase pipeline.
+Both channels use the same Gemini + Cloudinary + Supabase pipeline.
 
 **Store name:** FAIT Gadgets
 **Live URL:** https://fait-gadgets-estore.vercel.app
@@ -50,10 +53,9 @@ All three channels use the same Gemini + Cloudinary + Supabase pipeline.
 | Styling | Tailwind CSS | Utility-first, no separate CSS files needed |
 | Database | Supabase (PostgreSQL) | Free tier, real-time, row-level security |
 | Image storage | Cloudinary | Free CDN, auto-optimization |
-| AI processing | Google Gemini 2.5 Flash | Reads image + caption → structured product data |
-| WhatsApp bot | Meta WhatsApp Cloud API | BLOCKED — Business verification rejected. Webhook code exists, not functional |
-| Telegram bot | Telegram Bot API | LIVE ✅ (Session 7) — listing pipeline + SOLD command + multi-photo album merging (Session 8) |
-| Seller notifications | Meta WhatsApp Cloud API | Still active for non-Telegram events (likes/saves/enquiries) — not yet retired, may fail when token expires |
+| AI processing | Google Gemini 2.5 Flash | Reads image + caption/text → structured product data or edit instructions |
+| Telegram bot | Telegram Bot API | LIVE ✅ — listing (Session 7), multi-photo albums + free-text edits (Session 8) |
+| Seller notifications | Telegram Bot API | LIVE ✅ (Session 9) — new listing, like, save, enquiry, SOLD, edit confirmation, ALL via Telegram. Meta WhatsApp Cloud API fully removed. |
 | Live chat | Tawk.to | Widget on storefront — CONFIGURED ✅ (NEXT_PUBLIC_TAWKTO_ID set) |
 | Hosting | Vercel | Free, deploys automatically from Git |
 
@@ -81,16 +83,17 @@ estore/
 │   ├── supabase.ts         ← Two clients: public (storefront) + admin (API routes + dashboard)
 │   │                          Also exports Product, Interaction TypeScript types
 │   ├── gemini.ts           ← Calls Gemini 2.5 Flash via REST API (NOT the SDK)
-│   │                          Returns: { name, description, price, currency, category }
+│   │                          extractProductInfo() returns: { name, description, price, currency, category }
+│   │                          interpretEditCommand() (Session 8) returns: { field, value } from free-text edits
 │   ├── cloudinary.ts       ← Uploads image URL or base64 dataUri → returns CDN URL
-│   ├── notify.ts           ← Sends WhatsApp messages to seller via Meta Cloud API
-│   │                          Logs HTTP status + body on failure (added Session 6)
-│   │                          Exports: notifySeller(), productListedMessage(), visitorInteractionMessage()
-│   ├── telegram.ts         ← Telegram bot helpers (added Session 7)
-│   │                          sendTelegramMessage(chatId, text) — mirrors notifySeller()
+│   ├── telegram.ts         ← Telegram bot helpers + ALL seller notifications (added Session 7,
+│   │                          absorbed Meta's notification role in Session 9 when lib/notify.ts
+│   │                          was deleted entirely)
+│   │                          sendTelegramMessage(chatId, text) — logs HTTP status + body on failure
 │   │                          downloadTelegramFile(fileId) — file_id → file_path → base64 dataUri
 │   │                          productListedMessage() takes an optional photoCount (Session 8)
-│   │                          Exports: sendTelegramMessage(), downloadTelegramFile(), productListedMessage()
+│   │                          visitorInteractionMessage() — like/save/enquiry templates (moved from notify.ts, Session 9)
+│   │                          Exports: sendTelegramMessage(), downloadTelegramFile(), productListedMessage(), visitorInteractionMessage()
 │   └── auth.ts             ← Admin auth helpers
 │                              isAdminAuthed() — for Server Component pages
 │                              isAdminAuthedFromRequest() — for API routes
@@ -134,11 +137,6 @@ estore/
 │   │                                   Save as Draft / Publish buttons
 │   │
 │   └── api/
-│       ├── webhook/
-│       │   └── route.ts    ← GET: Meta webhook verification
-│       │                      POST: Incoming WhatsApp messages → list product or handle SOLD command
-│       │                      Verifies X-Hub-Signature-256 using META_APP_SECRET ✅
-│       │                      NOTE: Currently blocked by Meta verification rejection
 │       ├── telegram/
 │       │   └── route.ts    ← POST only (added Session 7, LIVE in production)
 │       │                      Incoming Telegram messages → list product or handle SOLD command
@@ -147,14 +145,15 @@ estore/
 │       │                      Multi-photo album (message.media_group_id set, Session 8) →
 │       │                      handleAlbumPhoto() stages each photo in telegram_media_groups,
 │       │                      debounces 2s, merges into ONE product once the album finishes arriving
-│       │                      Always returns HTTP 200, same rule as the Meta webhook
+│       │                      Always returns HTTP 200, never throws back to the platform
 │       │                      export const maxDuration = 60 (debounce wait + Gemini exceeds the 10s default)
+│       │                      Other text → interpretEditCommand() (Session 8) edits the most recent product
 │       ├── track/
 │       │   └── route.ts    ← POST: logs visitor interactions (view/like/save/enquiry)
-│       │                      Notifies seller for like, save, enquiry (not views)
+│       │                      Notifies seller via Telegram for like, save, enquiry (not views) — Session 9
 │       ├── enquire/
 │       │   └── route.ts    ← POST: saves buyer contact details to enquiries table
-│       │                      Also logs interaction + notifies seller with full buyer info
+│       │                      Also logs interaction + notifies seller via Telegram with full buyer info — Session 9
 │       └── admin/
 │           ├── login/
 │           │   └── route.ts    ← POST: verify ADMIN_PASSWORD, set httpOnly cookie (7 days)
@@ -176,6 +175,9 @@ estore/
 └── components/             ← Reusable React components
     ├── ProductCard.tsx     ← Product tile: image, name, price, like/save buttons
     │                          Tracks views on mount, persists like/save in localStorage
+    │                          Like/save buttons are SIBLINGS of the product <Link>, not nested
+    │                          inside it (Session 9 fix — see Rule 16: nested <button> inside <a>
+    │                          made taps unreliable on mobile)
     ├── EnquireButton.tsx   ← Two-button row: "Request to Buy" (opens modal) + chat icon (Tawk.to)
     ├── BuyRequestModal.tsx ← Bottom-sheet modal: buyer name + phone + optional message
     │                          Submits to /api/enquire → success confirmation shown
@@ -206,7 +208,7 @@ Each session adds new tables/columns — always run the full file (all statement
 | image_url | text | Cloudinary CDN URL (primary image) |
 | image_urls | text[] | Array of all product image URLs (first = primary) |
 | status | text | 'available', 'sold', or 'draft' — no CHECK constraint, plain text |
-| wa_message_id | text | External message ID for deduplication — Meta media ID, Telegram message ID prefixed `tg_`, or Telegram album ID prefixed `tg_group_` (added Session 8) |
+| wa_message_id | text | Telegram message ID prefixed `tg_`, or album ID prefixed `tg_group_`, for deduplication. Column name is a holdover from the original Meta integration (removed Session 9) — not worth a migration to rename. |
 | created_at | timestamptz | Auto set |
 | updated_at | timestamptz | Auto-updated via trigger |
 
@@ -262,7 +264,7 @@ Joins products with interaction counts. Use for analytics:
 All required. See `.env.example` for the full list with comments.
 Never commit `.env.local` — it contains secrets.
 
-### Current `.env.local` status (as of 2026-06-19)
+### Current `.env.local` status (as of 2026-06-26, Session 9 — Meta vars removed)
 
 ```
 # ── SUPABASE ──────────────────────────────────────────
@@ -278,16 +280,6 @@ CLOUDINARY_API_SECRET=...                                           ← SET
 # ── GOOGLE GEMINI AI ──────────────────────────────────
 GEMINI_API_KEY=AQ.Ab8RN6J...                                        ← SET (new format, valid)
 
-# ── META WHATSAPP CLOUD API (may be replaced by Telegram in Session 7) ────────
-META_ACCESS_TOKEN=...                                               ← SET (risk: temporary token, may expire)
-META_PHONE_NUMBER_ID=1132807136580749                               ← SET
-META_WABA_ID=15720796582561044                                      ← SET
-META_WEBHOOK_VERIFY_TOKEN=fait-gadgets-webhook-2026                 ← SET
-META_APP_SECRET=...                                                 ← SET ✅
-
-# ── SELLER ────────────────────────────────────────────
-SELLER_PHONE=2347037401412                                          ← SET (Nigerian format, no +)
-
 # ── STORE SETTINGS ────────────────────────────────────
 NEXT_PUBLIC_STORE_NAME=FAIT Gadgets                                 ← SET
 NEXT_PUBLIC_SITE_URL=https://fait-gadgets-estore.vercel.app        ← SET
@@ -298,17 +290,25 @@ NEXT_PUBLIC_TAWKTO_ID=6a2a9f25f.../1jqr7rbgv                       ← SET ✅
 # ── ADMIN DASHBOARD ───────────────────────────────────
 ADMIN_PASSWORD="19@George80"                                        ← SET ✅ (changed Session 8 — quote unquoted special chars, see Rule 14)
 
-# ── TELEGRAM BOT (Session 7 — LIVE) ───────────────────
+# ── TELEGRAM BOT (listing + ALL seller notifications) ─
 TELEGRAM_BOT_TOKEN=8831963972:AAFopI9...                            ← SET ✅
 TELEGRAM_CHAT_ID=1478850085                                         ← SET ✅
 ```
 
-### Variables that are NO LONGER needed (Green API era — do not re-add)
+### Variables that are NO LONGER needed (do not re-add)
 ```
-GREEN_API_INSTANCE     ← removed
-GREEN_API_TOKEN        ← removed
-CALLMEBOT_API_KEY      ← removed
+GREEN_API_INSTANCE          ← removed (Green API era)
+GREEN_API_TOKEN             ← removed (Green API era)
+CALLMEBOT_API_KEY           ← removed (Green API era)
+META_ACCESS_TOKEN           ← removed (Session 9 — Meta retired, see "What This Project Is")
+META_PHONE_NUMBER_ID        ← removed (Session 9)
+META_WABA_ID                ← removed (Session 9)
+META_WEBHOOK_VERIFY_TOKEN   ← removed (Session 9)
+META_APP_SECRET             ← removed (Session 9)
+SELLER_PHONE                ← removed (Session 9 — only Meta used this)
 ```
+**Action still needed:** remove these same Meta/SELLER_PHONE variables from the Vercel
+dashboard (Settings → Environment Variables) — removing them locally doesn't touch production.
 
 ---
 
@@ -336,17 +336,19 @@ All styling goes through Tailwind classes. Custom reusable classes (`.btn-primar
 
 ### 4. Image handling
 All product images go through Cloudinary before being saved to the database.
-Never save a temporary Meta media URL or Telegram file URL to Supabase — always upload to Cloudinary first.
+Never save a temporary Telegram file URL to Supabase — always upload to Cloudinary first.
 
 ### 5. Error handling in the webhook
-Both webhooks (`app/api/webhook/route.ts` for Meta, `app/api/telegram/route.ts` for Telegram)
-must always return HTTP 200, even on errors. If they return 4xx or 5xx, the platform will
-retry repeatedly and can create duplicate products. Log errors to console but return
-`{ ok: false }` with status 200.
+`app/api/telegram/route.ts` must always return HTTP 200, even on errors. If it returns 4xx or
+5xx, Telegram will retry repeatedly and can create duplicate products. Log errors to console
+but return `{ ok: false }` with status 200.
 
 ### 6. Notifications are fire-and-forget
-`notifySeller()` catches its own errors internally. Never `await` it in a way that would block the main flow.
-As of Session 6, it now logs the HTTP status code and response body if the Meta API returns a non-200.
+`sendTelegramMessage()` (`lib/telegram.ts`) catches its own errors internally. Never `await`
+it in a way that would block the main flow. It logs the HTTP status code and response body if
+the Telegram API returns a non-200. (Before Session 9 this was `notifySeller()` over Meta
+WhatsApp Cloud API — Meta has been fully removed; all seller notifications now go through
+Telegram.)
 
 ### 7. Gemini uses REST API directly — not the SDK
 `lib/gemini.ts` calls `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent`
@@ -450,6 +452,27 @@ examples. Never silent, unlike the old behavior.
 Targets the most recent product by `created_at` regardless of status (not just `available`,
 unlike the `SOLD` command) so a price can still be fixed even if it was mistakenly marked sold.
 
+### 16. Never nest a `<button>` inside a `<Link>`/`<a>` (Session 9)
+`components/ProductCard.tsx`'s like/save buttons used to be DOM descendants of the product's
+`<Link>` (positioned `absolute` over the image, inside the anchor). This is invalid HTML — a
+`<button>` cannot be a descendant of an `<a>` — and while desktop click handling tolerated it,
+it was reported as a real bug: **no working like/save on mobile**. Mobile browsers (iOS
+Safari especially, with its link-press/preview gestures) handle nested interactive elements
+unreliably; taps on the inner button could get swallowed by the outer link's tap handling
+instead of firing the button's own `onClick`.
+
+Fix: restructured so the like/save buttons are **siblings** of the `<Link>`, both inside a
+shared `relative` wrapper `<div>` — same visual position (`absolute top-2 right-2` over the
+image corner), but no longer a descendant of the anchor. `e.preventDefault()` was removed
+from `handleLike`/`handleSave` since it's no longer needed once the button isn't nested
+inside something that would otherwise navigate.
+
+**Rule going forward:** any floating/overlay button rendered inside a card that is itself a
+`<Link>` must be a sibling of that `<Link>`, never a child of it. Verified by tapping via a
+real touch gesture (Playwright `.tap()` with `hasTouch`/`isMobile` context options, not just
+`.click()`) — `.click()` alone would not have caught this bug, since mouse clicks don't
+exhibit the same nested-anchor quirks as touch taps.
+
 ---
 
 ## Known Bugs
@@ -457,12 +480,19 @@ unlike the `SOLD` command) so a price can still be fixed even if it was mistaken
 All previously known bugs have been fixed:
 
 - ✅ **BUG 1 FIXED (Session 4):** Sold products now show SOLD overlay — product detail page uses `supabaseAdmin`
-- ✅ **BUG 2 FIXED (Session 5):** Webhook signature verification active + live tested in production
+- ✅ **BUG 2 FIXED (Session 5):** Meta webhook signature verification active + live tested in production.
+  Moot as of Session 9 — the Meta webhook this protected was deleted entirely.
 - ✅ **BUG 3 FIXED (Session 8):** Telegram multi-photo album → was creating one product per photo
   (price/description landing on only one). Fixed via `telegram_media_groups` staging + debounce
-  merge — see Rule 13. **Needs `schema.sql` re-run in Supabase before this fix is active.**
+  merge — see Rule 13.
+- ✅ **BUG 4 FIXED (Session 8):** Telegram text messages other than `SOLD` (e.g. a free-text
+  price correction) were silently dropped — no reply, no action. Fixed via `interpretEditCommand()`
+  — see Rule 15.
+- ✅ **BUG 5 FIXED (Session 9):** Like/save buttons on `ProductCard` didn't work on mobile — a
+  `<button>` was nested inside the product's `<Link>`, which mobile browsers handle unreliably.
+  Fixed by making the buttons siblings of the link — see Rule 16.
 
-No remaining known bugs (pending the schema.sql migration for BUG 3, see above).
+No remaining known bugs.
 
 ---
 
@@ -540,10 +570,10 @@ Telegram webhook is registered with:
 - [x] Individual product page with SOLD overlay logic (uses supabaseAdmin)
 - [x] **Request to Buy modal** — buyer enters name + phone → stored in `enquiries` table → seller notified
 - [x] **Dedicated product edit page** at `/admin/products/[id]/edit` — full page, mobile-friendly
-- [x] WhatsApp webhook — Meta Cloud API (GET verification + POST handler with HMAC-SHA256 auth)
+- [x] ~~WhatsApp webhook — Meta Cloud API~~ — REMOVED Session 9, see "What This Project Is"
 - [x] Gemini 2.5 Flash AI pipeline (image + caption → product name/description/price/category)
 - [x] Cloudinary upload pipeline (image → base64 → Cloudinary CDN URL)
-- [x] Seller notifications via Meta Cloud API (new listing, like, save, enquiry) with failure logging
+- [x] ~~Seller notifications via Meta Cloud API~~ — REMOVED Session 9, replaced by Telegram (all of new listing, like, save, enquiry, SOLD, edit confirmation)
 - [x] **On-demand revalidation** — storefront updates immediately on every admin publish/edit/delete
 - [x] Visitor interaction tracking (view/like/save/enquiry stored in Supabase)
 - [x] Deduplication via `wa_message_id` (same WhatsApp message cannot create two products)
@@ -580,21 +610,34 @@ Telegram webhook is registered with:
   `app/api/telegram/route.ts` + `telegram_media_groups` table + `append_telegram_media_group()`
   Postgres function. Sending several photos at once now creates ONE product with all photos
   attached, instead of one product per photo (BUG 3, see Known Bugs)
+- [x] **Telegram free-text edit instructions** (Session 8) — `interpretEditCommand()` in
+  `lib/gemini.ts`. Any text that isn't `SOLD` is interpreted as an edit to the most recently
+  listed product's price/name/description/category, with the bot always replying (BUG 4)
+- [x] **Meta WhatsApp Cloud API fully retired** (Session 9) — `lib/notify.ts` and
+  `app/api/webhook/route.ts` deleted entirely (not just disabled). All seller notifications
+  (new listing, like, save, enquiry, SOLD, edit confirmation) now go through Telegram via
+  `lib/telegram.ts`. Considered Twilio as an alternative and rejected it — Twilio's WhatsApp
+  messaging still runs on the same Meta-owned platform that rejected verification, so it
+  wouldn't have solved anything Telegram doesn't already solve for free
+- [x] **Dark mode toggle** (Session 8) — light/dark theme across the storefront and admin
+  panel, persisted in `localStorage`, applied before first paint to avoid a flash
+- [x] **BUG 5 fixed** (Session 9): like/save buttons on `ProductCard` are now siblings of the
+  product `<Link>` instead of nested inside it, fixing unreliable taps on mobile
 
 ---
 
 ## What Has NOT Been Built Yet ❌
 
-### Next priority — Session 8
-- [ ] **Retire Meta WhatsApp Cloud API** — now that Telegram is verified live, swap remaining
-  `notifySeller()` calls (likes/saves/enquiries) to `sendTelegramMessage()`, then drop unused
-  Meta env vars and webhook code
+### Next priority — Session 10
 - [ ] **Resolve Vercel CLI account mismatch** — `vercel whoami` keeps returning the wrong
   account; identify the correct FAIT-Pro login email so `vercel --prod` works again
+- [ ] **Remove leftover Meta env vars from the Vercel dashboard** — removed locally and from
+  code in Session 9, but the Vercel project's Environment Variables still need the same
+  `META_*` / `SELLER_PHONE` entries deleted manually
 
 ### Other features
 - [ ] Analytics page — use existing `product_stats` Supabase view
-- [ ] "Mark specific product as SOLD" by product ID via Telegram/WhatsApp command
+- [ ] "Mark specific product as SOLD" by product ID via Telegram command
 - [ ] Email notifications via Resend (alternative/fallback to Telegram)
 - [ ] Order / reservation system with payment
 
@@ -619,7 +662,9 @@ git checkout main
 
 - Store name: FAIT Gadgets
 - Seller is based in Nigeria — default currency is NGN (₦)
-- Seller phone: Nigerian number stored as `SELLER_PHONE=2347037401412`
-- Business is WhatsApp-first; the seller already posts products to WhatsApp Status daily
+- Seller's notification channel is now Telegram only (Session 9) — `SELLER_PHONE` /
+  Meta WhatsApp env vars removed, no longer applicable
+- Business was originally WhatsApp-first (seller posts to WhatsApp Status daily), but the
+  storefront's listing and notification pipeline no longer touches WhatsApp at all
 - The seller is a beginner with coding — keep changes simple and well-commented
 - Every file in this project has inline comments explaining what each section does

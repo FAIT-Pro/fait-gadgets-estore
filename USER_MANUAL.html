@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FAIT Gadgets E-Store — Complete User Manual</title>
+<style>
+  :root {
+    --brand: #16a34a;
+    --brand-dark: #15803d;
+    --ink: #1f2430;
+    --muted: #5b6472;
+    --line: #e3e7ee;
+    --bg-soft: #f6f8fb;
+    --warn-bg: #fff7ed;
+    --warn-border: #fdba74;
+    --code-bg: #0f172a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    line-height: 1.6;
+    margin: 0;
+    background: #fff;
+  }
+  .page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 48px 32px 80px;
+  }
+  .cover {
+    text-align: center;
+    padding: 56px 24px 40px;
+    border-bottom: 4px solid var(--brand);
+    margin-bottom: 40px;
+  }
+  .cover .badge {
+    display: inline-block;
+    background: var(--brand);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin-bottom: 18px;
+  }
+  .cover h1 {
+    font-size: 32px;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .cover p.sub {
+    color: var(--muted);
+    font-size: 15px;
+    margin: 0;
+  }
+  .cover .links {
+    margin-top: 20px;
+    font-size: 14px;
+  }
+  .cover .links a { color: var(--brand-dark); text-decoration: none; font-weight: 600; }
+
+  h2 {
+    font-size: 22px;
+    color: var(--ink);
+    border-left: 5px solid var(--brand);
+    padding-left: 12px;
+    margin: 44px 0 16px;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 17px;
+    color: var(--brand-dark);
+    margin: 28px 0 10px;
+    page-break-after: avoid;
+  }
+  p { margin: 10px 0; }
+  ul, ol { margin: 8px 0 14px; padding-left: 24px; }
+  li { margin: 4px 0; }
+  strong { color: var(--ink); }
+
+  .lead {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-size: 15px;
+    margin-bottom: 8px;
+  }
+
+  .note {
+    background: var(--bg-soft);
+    border-left: 4px solid var(--brand);
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin: 12px 0;
+    font-size: 14.5px;
+  }
+  .warn {
+    background: var(--warn-bg);
+    border-left: 4px solid var(--warn-border);
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin: 12px 0;
+    font-size: 14.5px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 22px;
+    font-size: 14px;
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 9px 12px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th {
+    background: var(--bg-soft);
+    font-weight: 600;
+    color: var(--ink);
+  }
+  tr:nth-child(even) td { background: #fafbfd; }
+
+  code {
+    background: #eef1f6;
+    color: #b3261e;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.92em;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+  }
+  pre {
+    background: var(--code-bg);
+    color: #e2e8f0;
+    padding: 16px 18px;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.55;
+    page-break-inside: avoid;
+  }
+  pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+  }
+  .diagram {
+    background: var(--code-bg);
+    color: #a7f3d0;
+    padding: 20px;
+    border-radius: 10px;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.5;
+    overflow-x: auto;
+    white-space: pre;
+    page-break-inside: avoid;
+  }
+
+  .toc {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 24px;
+    margin-bottom: 12px;
+  }
+  .toc h2 { margin-top: 0; border: none; padding-left: 0; }
+  .toc ol { margin: 0; padding-left: 22px; columns: 2; column-gap: 32px; }
+  .toc li { margin: 5px 0; font-size: 14.5px; }
+  .toc a { color: var(--ink); text-decoration: none; }
+  .toc a:hover { color: var(--brand-dark); }
+
+  .status-live { color: var(--brand-dark); font-weight: 600; }
+  .status-blocked { color: #b91c1c; font-weight: 600; }
+  .status-warn { color: #b45309; font-weight: 600; }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12.5px;
+    text-align: center;
+  }
+
+  @media print {
+    .page { padding: 0 8px; }
+    .cover { padding-top: 0; }
+    a { color: inherit; text-decoration: none; }
+    h2 { page-break-before: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="cover">
+    <span class="badge">Complete User Manual</span>
+    <h1>FAIT Gadgets E-Store</h1>
+    <p class="sub">How the entire site works — every input, every output, every button, every app it depends on.</p>
+    <p class="links">
+      Live store: <a href="https://fait-gadgets-estore.vercel.app">fait-gadgets-estore.vercel.app</a>
+      &nbsp;·&nbsp;
+      Admin login: <a href="https://fait-gadgets-estore.vercel.app/admin">/admin</a>
+    </p>
+  </div>
+
+  <p class="lead">
+    This is the single reference for how the entire site works. It is written for the
+    store owner, not just a developer. If a word is unfamiliar, check the
+    <strong>Glossary</strong> near the end.
+  </p>
+
+  <p>Related documents in this project, and how this manual differs from them:</p>
+  <ul>
+    <li><code>CLAUDE.md</code> — technical reference for whoever is coding on this project
+      (architecture, file locations, rules). Read this manual instead if you just want to know
+      how to <em>use</em> the site.</li>
+    <li><code>SESSION_LOG.md</code> — a diary of what was built/fixed in each work session, in order.</li>
+    <li><code>SETUP_GUIDE.md</code> — <strong>outdated.</strong> Still describes Green API and
+      CallMeBot, both removed long ago. Don't follow it for new setup; this manual and
+      <code>CLAUDE.md</code>'s Environment Variables section are current.</li>
+  </ul>
+
+  <div class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#sec1">The Big Picture</a></li>
+      <li><a href="#sec2">The Two Ways to List a Product</a></li>
+      <li><a href="#sec3">Managing Products — the Admin Dashboard</a></li>
+      <li><a href="#sec4">What Customers See and Can Do</a></li>
+      <li><a href="#sec5">Notifications</a></li>
+      <li><a href="#sec6">Apps and Services This Project Depends On</a></li>
+      <li><a href="#sec7">Environment Variables</a></li>
+      <li><a href="#sec8">Troubleshooting</a></li>
+      <li><a href="#sec9">Local Development &amp; Deployment</a></li>
+      <li><a href="#sec10">The Database, Simplified</a></li>
+      <li><a href="#sec11">Glossary</a></li>
+      <li><a href="#sec12">Quick Reference Cheat Sheet</a></li>
+    </ol>
+  </div>
+
+  <h2 id="sec1">1. The Big Picture — how a product gets from your phone to a customer's screen</h2>
+
+  <div class="diagram">YOU                      THE SYSTEM                                 THE CUSTOMER
+
+┌──────────────┐
+│ Take a photo │
+│ of a product │
+└──────┬───────┘
+       │
+       ├──► Telegram bot ───┐
+       │   (primary way)     │
+       │                     ▼
+       ├──► /admin upload ─►  Gemini AI reads the photo
+       │   (backup way)       (name, price, description,
+       │                       category guessed from the
+       │                       image + your caption)
+       │                             │
+       │                             ▼
+       │                      Cloudinary stores the
+       │                      photo(s) permanently
+       │                             │
+       │                             ▼
+       │                      Supabase database saves
+       │                      the product record
+       │                             │
+       │                             ▼
+       │                      Appears on the live store ───────► Customer browses,
+       │                                                          searches, filters
+       │                                                          by category
+       │                             │
+       │                             ▼                            Customer taps
+       │                      Storefront shows it           ◄──   "Request to Buy"
+       │                      instantly (no waiting)               or likes/saves it
+       │                             │
+       ◄─── Telegram message ────────┘
+      "✅ New product listed!"                            Customer's name + phone
+                                                             saved to your enquiries list
+       ◄─── Telegram notification ────────────────────────┘
+      "🛒 New buy request!" with buyer's contact info</div>
+
+  <p>Everything else in this manual is detail on top of this one loop:
+  <strong>you provide a photo and maybe some words → AI fills in the rest → it appears on the
+  store → customers act on it → you get told about it.</strong></p>
+
+  <h2 id="sec2">2. The Two Ways to List a Product</h2>
+
+  <p>WhatsApp (via Meta's Cloud API) was the original plan, but Meta rejected the business
+  verification needed to make it work — so it was removed from the project entirely. Telegram
+  fully replaced it: it lists products AND carries every seller notification, at zero cost
+  with no verification risk.</p>
+
+  <table>
+    <tr><th>Channel</th><th>Status</th><th>Use it when</th></tr>
+    <tr><td><strong>Telegram bot</strong></td><td class="status-live">✅ Live, primary</td>
+      <td>Always — it's the fastest, works from your phone, zero setup per item</td></tr>
+    <tr><td><strong>Admin Upload page</strong> (<code>/admin/products/new</code>)</td>
+      <td class="status-live">✅ Live, backup</td>
+      <td>Telegram is down, or you want to carefully review every field before it goes live (Draft mode)</td></tr>
+  </table>
+
+  <h3>2.1 Telegram Bot — the main way you list products</h3>
+  <p>Find your bot in Telegram (the one whose token is in <code>TELEGRAM_BOT_TOKEN</code>) and just message it.</p>
+
+  <p><strong>To list ONE product with one photo:</strong></p>
+  <ol>
+    <li>Open a chat with the bot in Telegram</li>
+    <li>Send a photo, with a caption describing it (e.g. <code>Red leather handbag ₦8,500, brand new</code>)</li>
+    <li>Wait a few seconds — the bot replies with a confirmation and a link to the live listing</li>
+    <li>The product is <strong>published immediately</strong> (not a draft) — it's already live on the store</li>
+  </ol>
+
+  <p><strong>To list ONE product with MULTIPLE photos (an album):</strong></p>
+  <ol>
+    <li>In Telegram, tap the photo icon and <strong>select several photos at once</strong> (this creates what Telegram calls an "album" / "media group")</li>
+    <li>Only ONE of the photos needs a caption — Telegram lets you add a caption to the whole album, usually on the first photo you select</li>
+    <li>Send them all together</li>
+    <li>Wait a few seconds longer than for a single photo (the bot waits ~2 seconds after the last photo arrives to make sure it has them all) — then you get ONE confirmation message for ONE product, with all the photos attached</li>
+    <li><strong>Important:</strong> put your price and description details in the caption. If a photo arrives without ever getting a caption attached to the album, the AI only has the photo to go on and may not catch the price.</li>
+  </ol>
+
+  <div class="warn">
+    <strong>If you made a mistake (wrong price, name, etc.) after sending:</strong>
+    <ul>
+      <li><strong>Do NOT edit the message/caption in Telegram</strong> — this does nothing. Telegram doesn't tell the bot when you edit a message, so the listing never updates.</li>
+      <li><strong>Instead, send a brand new text message</strong> describing the fix. Examples:
+        <code>price 165000</code>, <code>change the price to ₦165,000</code>,
+        <code>update the name to Samsung Galaxy Buds Pro</code>, <code>change category to Electronics</code>.</li>
+      <li>This always applies to whichever product you listed <strong>most recently</strong> (regardless of whether it's still live, sold, or anything else).</li>
+      <li>The bot will ALWAYS reply — either confirming what it changed, or telling you it didn't understand and giving you an example of what to try. It is never silent.</li>
+      <li>If you need to fix something that ISN'T your most recent listing, use the <strong>Admin Dashboard → Edit</strong> instead (see Section 3).</li>
+    </ul>
+  </div>
+
+  <p><strong>To mark your most recent LIVE (available) product as sold:</strong></p>
+  <ul>
+    <li>Send the exact text <code>SOLD</code> (any case — <code>sold</code>, <code>Sold</code>, <code>SOLD</code> all work)</li>
+    <li>The bot replies confirming which product it marked sold</li>
+  </ul>
+
+  <p><strong>Things the Telegram bot does NOT do:</strong></p>
+  <ul>
+    <li>It can't tell you what your current listings are (no "list my products" command) — check the live site or the Admin Dashboard for that.</li>
+    <li>It can't delete a product — use the Admin Dashboard.</li>
+    <li>It can't mark a <em>specific</em> product as sold by name if you've listed several since — <code>SOLD</code> always targets the most recent available one.</li>
+  </ul>
+
+  <h3>2.2 Admin Upload Page — the backup way, with more control</h3>
+  <p>Go to <code>/admin</code> → log in → <strong>Add Product</strong>.</p>
+  <ol>
+    <li><strong>Tap to take a photo, or pick from your gallery</strong> — or tap "pick from your image library" to reuse a photo you've already uploaded for a different product</li>
+    <li>Wait while the AI reads it (spinner shown)</li>
+    <li>Review the pre-filled fields — <strong>name, price + currency (NGN/USD), category, description</strong> — edit anything that's wrong</li>
+    <li>Optionally add up to 5 more photos (tap <strong>+</strong> to upload a new one, or the grid icon to pick from your library) — only the FIRST photo gets read by the AI; extra photos are just stored</li>
+    <li>Choose:
+      <ul>
+        <li><strong>Save as Draft</strong> — saved but invisible to customers, until you publish it later</li>
+        <li><strong>Publish Now</strong> — goes live immediately</li>
+      </ul>
+    </li>
+  </ol>
+  <div class="note">This is the only channel that supports <strong>Draft</strong> mode (review before going live). Telegram listings always publish immediately.</div>
+
+  <h2 id="sec3">3. Managing Products — the Admin Dashboard</h2>
+  <p>Go to <code>/admin/dashboard</code> (log in first if needed).</p>
+
+  <h3>3.1 What you see</h3>
+  <ul>
+    <li><strong>Stats row</strong>: count of Live / Drafts / Sold products</li>
+    <li><strong>+ Add Product</strong> button → takes you to the upload page (Section 2.2)</li>
+    <li><strong>Three tabs</strong>: Live, Drafts, Sold — each lists the matching products</li>
+  </ul>
+
+  <h3>3.2 Actions available per product, by status</h3>
+  <table>
+    <tr><th>Status</th><th>Buttons available</th><th>What each does</th></tr>
+    <tr><td><strong>Draft</strong></td><td>Edit, 🚀 Publish, Delete</td>
+      <td>Publish makes it instantly visible on the store</td></tr>
+    <tr><td><strong>Live</strong></td><td>Edit, Unpublish, Mark Sold, Copy URL, Delete</td>
+      <td>Unpublish sends it back to Drafts (invisible to customers, but not deleted)</td></tr>
+    <tr><td><strong>Sold</strong></td><td>Edit, Re-list, Delete</td>
+      <td>Re-list sets status back to Live/available</td></tr>
+  </table>
+  <ul>
+    <li><strong>Edit</strong> → opens a full-page editor where you can change name, price, currency, category, description, and add/remove/reorder photos (same photo tools as the upload page — new upload, or pick from your image library)</li>
+    <li><strong>Delete</strong> → permanent. Asks for confirmation first. Cannot be undone.</li>
+    <li><strong>Copy URL</strong> → copies the public product page link to your clipboard, ready to paste anywhere (e.g. to share directly with a buyer)</li>
+  </ul>
+
+  <h3>3.3 How fast do changes appear on the live store?</h3>
+  <p>Instantly. Every admin action (publish, edit, delete, status change) immediately tells the
+  live site to refresh that page — you don't need to wait or do anything extra. (Telegram
+  listings/edits do the same.) There's a 10-minute fallback refresh in case that instant signal
+  is ever missed, but in practice you should see changes appear right away.</p>
+
+  <h2 id="sec4">4. What Customers See and Can Do</h2>
+
+  <h3>4.1 Browsing the storefront</h3>
+  <ul>
+    <li><strong>Category filter</strong> — pills along the top: All, Fashion, Electronics, Food &amp; Drinks, Beauty, Home &amp; Living, Other</li>
+    <li><strong>Live search</strong> — typing in the search box filters the grid as they type (no page reload), searching by product name</li>
+    <li><strong>Dark mode toggle</strong> — a small sun/moon button in the header. Switches the whole site to a dark color theme. Their choice is remembered on their device for next time.</li>
+  </ul>
+
+  <h3>4.2 On a product page</h3>
+  <ul>
+    <li><strong>Photo gallery</strong> — large image with a thumbnail strip if there are multiple photos</li>
+    <li><strong>Like</strong> (heart icon) and <strong>Save</strong> (bookmark icon) — these notify you (see Section 5)</li>
+    <li><strong>"Request to Buy"</strong> button — opens a form where the customer enters their name, phone number, and an optional message. Submitting this saves their contact details, notifies you immediately, and shows the customer a confirmation that you'll reach out</li>
+    <li><strong>Chat bubble icon</strong> — opens the Tawk.to live chat widget for general questions (separate from the Request to Buy flow)</li>
+    <li><strong>SOLD overlay</strong> — if you've marked the item sold, the page still works (doesn't 404) but shows a "This item has been sold" message instead of the buy button</li>
+  </ul>
+
+  <h3>4.3 What customers can't do</h3>
+  <ul>
+    <li>They cannot see Draft products at all (the page returns "not found")</li>
+    <li>They cannot edit, delete, or directly negotiate a price through the site — that all happens via the Request to Buy form or the chat widget, with you replying personally</li>
+  </ul>
+
+  <h2 id="sec5">5. Notifications — what tells you something happened, and how</h2>
+  <p>Every notification goes through one channel: <strong>Telegram</strong>, the same chat the bot lists products in.</p>
+  <table>
+    <tr><th>Event</th><th>Notified via</th><th>Note</th></tr>
+    <tr><td>New product listed (Telegram)</td><td>Telegram message, same chat</td><td>Includes name, price, link</td></tr>
+    <tr><td>New product listed (Admin Upload, published)</td><td><em>(none — you just did it yourself)</em></td><td></td></tr>
+    <tr><td>Someone likes a product</td><td>Telegram message</td><td></td></tr>
+    <tr><td>Someone saves a product</td><td>Telegram message</td><td></td></tr>
+    <tr><td>Someone submits a "Request to Buy"</td><td>Telegram message</td><td>Includes buyer's name, phone, and optional message</td></tr>
+    <tr><td>Someone marks SOLD via Telegram</td><td>Telegram message</td><td>Confirms which product</td></tr>
+    <tr><td>Someone sends a free-text edit instruction</td><td>Telegram message</td><td>Confirms the change, or explains it didn't understand</td></tr>
+  </table>
+  <p>Views (just looking at a product) are never notified — only likes, saves, and buy requests.</p>
+
+  <h2 id="sec6">6. The Apps and Services This Project Depends On</h2>
+  <table>
+    <tr><th>Service</th><th>Role</th><th>Where to log in</th><th>If it breaks...</th></tr>
+    <tr><td><strong>Supabase</strong></td><td>The database — stores every product, interaction, enquiry</td><td>supabase.com</td><td>Site can't show or save products at all</td></tr>
+    <tr><td><strong>Cloudinary</strong></td><td>Stores and serves all product photos</td><td>cloudinary.com</td><td>New photos fail to upload; old photos may stop loading if account is suspended</td></tr>
+    <tr><td><strong>Google Gemini AI</strong></td><td>Reads photos + captions/instructions, fills in product details, interprets Telegram text edits</td><td>aistudio.google.com</td><td>AI fields stop pre-filling; Telegram text edits stop working</td></tr>
+    <tr><td><strong>Telegram Bot API</strong></td><td>The listing channel AND every seller notification</td><td>t.me (talk to your own bot)</td><td>No new listings via Telegram, and no notifications at all; admin upload still works as backup for listing</td></tr>
+    <tr><td><strong>Tawk.to</strong></td><td>Live chat widget on the storefront</td><td>tawk.to (also has a phone app)</td><td>Chat bubble disappears; Request to Buy form still works independently</td></tr>
+    <tr><td><strong>Vercel</strong></td><td>Hosts the live website, auto-deploys on every <code>git push</code></td><td>vercel.com</td><td>Site goes offline entirely</td></tr>
+    <tr><td><strong>GitHub</strong></td><td>Stores all the code, triggers Vercel deploys</td><td>github.com</td><td>Can't deploy new changes (site keeps running on its last deploy)</td></tr>
+  </table>
+  <p>None of these cost money at the usage levels this store generates (all free tiers).</p>
+
+  <h2 id="sec7">7. Environment Variables — what they're for</h2>
+  <p>These are the secret settings that connect the code to the services above. Actual current
+  values live in <code>.env.local</code> (on this computer, never committed to GitHub) and must
+  be duplicated in the Vercel dashboard (Settings → Environment Variables) for the live site to
+  work. See <code>CLAUDE.md</code> for the exact current values.</p>
+  <table>
+    <tr><th>Variable</th><th>What it's for</th></tr>
+    <tr><td><code>NEXT_PUBLIC_SUPABASE_URL</code>, <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, <code>SUPABASE_SERVICE_ROLE_KEY</code></td><td>Database connection</td></tr>
+    <tr><td><code>CLOUDINARY_CLOUD_NAME</code>, <code>CLOUDINARY_API_KEY</code>, <code>CLOUDINARY_API_SECRET</code></td><td>Photo storage</td></tr>
+    <tr><td><code>GEMINI_API_KEY</code></td><td>AI photo/text reading</td></tr>
+    <tr><td><code>TELEGRAM_BOT_TOKEN</code>, <code>TELEGRAM_CHAT_ID</code></td><td>The Telegram bot's identity and where it sends you every notification</td></tr>
+    <tr><td><code>NEXT_PUBLIC_STORE_NAME</code></td><td>Shown as the site title</td></tr>
+    <tr><td><code>NEXT_PUBLIC_SITE_URL</code></td><td>Used to build links sent in notifications</td></tr>
+    <tr><td><code>NEXT_PUBLIC_TAWKTO_ID</code></td><td>Connects the live chat widget to your Tawk.to account</td></tr>
+    <tr><td><code>ADMIN_PASSWORD</code></td><td>The password for <code>/admin</code></td></tr>
+  </table>
+  <div class="warn">
+    <strong>Gotcha to remember:</strong> if any value contains a <code>#</code> character (like
+    a password), it MUST be wrapped in quotes in <code>.env.local</code> — e.g.
+    <code>ADMIN_PASSWORD="abc#123"</code> — otherwise everything after the <code>#</code> is
+    silently cut off when the site loads locally. This already happened once (see Section 8).
+    Vercel's own dashboard doesn't have this problem; it only affects local testing on your computer.
+  </div>
+
+  <h2 id="sec8">8. Troubleshooting — common problems and exactly what to do</h2>
+  <table>
+    <tr><th>Symptom</th><th>Likely cause</th><th>Fix</th></tr>
+    <tr><td>Admin password "wrong" locally, but you're sure it's right</td><td>A <code>#</code> in the password got truncated by the local env loader</td><td>Quote the value in <code>.env.local</code>: <code>ADMIN_PASSWORD="yourpass#123"</code>, restart <code>npm run dev</code></td></tr>
+    <tr><td>One Telegram album created several separate products</td><td>You're on an old deploy from before the album fix</td><td>Make sure <code>schema.sql</code> was run in Supabase (adds <code>telegram_media_groups</code> table) and the latest code is deployed</td></tr>
+    <tr><td>Edited a Telegram caption and nothing changed</td><td>Telegram doesn't notify the bot about edits at all</td><td>Send a brand-new text message instead, e.g. <code>price 165000</code></td></tr>
+    <tr><td>Sent a text message to the bot and nothing happened</td><td>Old code, or Gemini genuinely couldn't understand the message</td><td>Update to latest code; rephrase more explicitly, e.g. <code>change the price to 50000</code></td></tr>
+    <tr><td>A product shows "Ask for price" / no price</td><td>AI couldn't find a price in the photo or caption</td><td>Send a Telegram text edit (<code>price 50000</code>) or use Admin → Edit</td></tr>
+    <tr><td>New product doesn't appear on the storefront</td><td>Could be saved as Draft, not Published</td><td>Check Admin Dashboard → Drafts tab; Publish it if found there</td></tr>
+    <tr><td>Photos won't upload from Admin or Telegram</td><td>Cloudinary credentials wrong/expired, or file too large</td><td>Check Cloudinary dashboard is active; re-check <code>CLOUDINARY_*</code> env vars</td></tr>
+    <tr><td>AI fields come back empty or wrong on every upload</td><td>Gemini API key invalid/expired, or rate-limited</td><td>Check aistudio.google.com for key status; form still lets you fill fields manually if AI fails</td></tr>
+    <tr><td>Telegram bot stops responding entirely</td><td>Bot token revoked, or webhook unregistered</td><td>Re-run the <code>setWebhook</code> URL (see <code>CLAUDE.md</code> → How to Deploy) with the current token</td></tr>
+    <tr><td>Stopped getting ANY notifications (like/save/buy-request/listing)</td><td>Telegram bot token revoked, or the bot was blocked/removed from the chat</td><td>Message the bot again to confirm it responds; re-check <code>TELEGRAM_BOT_TOKEN</code>/<code>TELEGRAM_CHAT_ID</code> are still correct</td></tr>
+    <tr><td><code>vercel --prod</code> logs into the wrong account</td><td>Known unresolved issue</td><td>Skip the CLI: just <code>git push</code> to <code>main</code>, Vercel's GitHub integration auto-deploys</td></tr>
+    <tr><td>Pushing to GitHub fails / wrong account</td><td><code>gh auth status</code> shows the wrong account</td><td>Run <code>gh auth switch --user FAIT-Pro</code></td></tr>
+    <tr><td>Site shows old content after a deploy</td><td>Browser cache, or the deploy hasn't finished yet</td><td>Hard-refresh; check vercel.com dashboard for deploy status</td></tr>
+    <tr><td><code>Cannot find module './XXX.js'</code> error locally, or buttons/clicks stop doing anything in the dev server</td><td>Stale Next.js build cache — often caused by running a production <code>npm run build</code> while <code>next dev</code> is still running against the same <code>.next</code> folder</td><td><code>lsof -ti:3000 | xargs kill -9 && rm -rf .next && npm run dev</code> (use the correct port if not 3000)</td></tr>
+    <tr><td>Sold item shows a 404 instead of a SOLD badge</td><td>Would be a regression of a previously-fixed bug</td><td>Should not happen on current code — check the product page uses the admin database client, not the public one</td></tr>
+  </table>
+  <div class="note">
+    <strong>General debugging tip:</strong> Vercel's dashboard (vercel.com → your project → a
+    deployment → "Functions" tab) shows server-side log output for any API route, including the
+    Telegram and webhook handlers. This is the first place to look when something fails
+    silently in production.
+  </div>
+
+  <h2 id="sec9">9. Local Development &amp; Deployment — for whoever is coding on this</h2>
+  <pre><code># Install dependencies (first time only)
+npm install
+
+# Run locally
+npm run dev
+# → http://localhost:3000
+
+# Check for type errors before trusting a change
+npx tsc --noEmit
+
+# Build exactly as production would
+npm run build
+
+# Commit and deploy
+git add &lt;files&gt;
+git commit -m "..."
+git push          # Vercel auto-deploys main on every push</code></pre>
+
+  <p>Before any major change, create a snapshot branch first (this project's convention):</p>
+  <pre><code>git checkout -b snapshot-vN-description
+git push origin snapshot-vN-description
+git checkout main</code></pre>
+
+  <p>At the start of any work session, confirm accounts are correct:</p>
+  <pre><code>gh auth status                   # should show FAIT-Pro as active
+gh auth switch --user FAIT-Pro   # if not
+vercel whoami                    # often wrong — known unresolved issue, ignore and use git push</code></pre>
+
+  <h2 id="sec10">10. The Database, Simplified</h2>
+  <p>Four tables, all in Supabase:</p>
+  <ul>
+    <li><strong><code>products</code></strong> — every item ever listed. <code>status</code> is
+      one of <code>available</code> (live), <code>draft</code>, or <code>sold</code>.
+      <code>image_urls</code> holds ALL photos for multi-photo items; <code>image_url</code> is
+      just the first one, kept for backward compatibility. <code>wa_message_id</code> is how
+      the system avoids creating a duplicate product if a webhook delivery repeats itself.</li>
+    <li><strong><code>interactions</code></strong> — a log of every view/like/save/enquiry, used
+      to power notifications and could be used for analytics later.</li>
+    <li><strong><code>enquiries</code></strong> — every "Request to Buy" submission, with the
+      buyer's name, phone, and optional message.</li>
+    <li><strong><code>telegram_media_groups</code></strong> — a short-lived technical table that
+      temporarily holds photos from a Telegram album while they're still arriving, before they
+      get merged into one product. You'll never need to look at this directly; it cleans itself
+      up automatically.</li>
+  </ul>
+
+  <h2 id="sec11">11. Glossary</h2>
+  <table>
+    <tr><th>Term</th><th>Meaning</th></tr>
+    <tr><td><strong>Draft</strong></td><td>A product saved but not visible to customers yet</td></tr>
+    <tr><td><strong>Live / Available</strong></td><td>Visible to customers, can be bought</td></tr>
+    <tr><td><strong>Sold</strong></td><td>No longer for sale; page still loads but shows a SOLD badge instead of the buy button</td></tr>
+    <tr><td><strong>Webhook</strong></td><td>A URL that another service (Telegram) calls automatically when something happens, e.g. when you send the bot a photo</td></tr>
+    <tr><td><strong>Media group / album</strong></td><td>Telegram's term for several photos sent together in one go</td></tr>
+    <tr><td><strong>RLS (Row Level Security)</strong></td><td>A database rule that controls who can see what — e.g. customers can only ever see <code>available</code> products, never drafts</td></tr>
+    <tr><td><strong>Revalidate</strong></td><td>The mechanism that makes the live site update instantly after an admin action, instead of waiting for a scheduled refresh</td></tr>
+    <tr><td><strong>Env var (environment variable)</strong></td><td>A secret setting (like a password or API key) kept outside the code, in <code>.env.local</code> locally and the Vercel dashboard in production</td></tr>
+    <tr><td><strong>Deploy</strong></td><td>Publishing a code change so it's live on the real website</td></tr>
+    <tr><td><strong>Snapshot branch</strong></td><td>A saved copy of the code at a point in time, used as a safety net before risky changes</td></tr>
+  </table>
+
+  <h2 id="sec12">12. Quick Reference — the most common things you'll actually do</h2>
+  <table>
+    <tr><th>I want to...</th><th>Do this</th></tr>
+    <tr><td>List a new product</td><td>Send a photo (or several at once) to the Telegram bot, with a caption including the price</td></tr>
+    <tr><td>Fix a price/name/description I got wrong</td><td>Send a NEW text message to the bot, e.g. <code>price 50000</code></td></tr>
+    <tr><td>Mark something sold</td><td>Send <code>SOLD</code> to the bot</td></tr>
+    <tr><td>See everything I've listed</td><td>Go to <code>/admin/dashboard</code></td></tr>
+    <tr><td>Carefully review before publishing</td><td>Use <code>/admin/products/new</code> → Save as Draft → review → Publish later</td></tr>
+    <tr><td>Edit a product that ISN'T my most recent listing</td><td><code>/admin/dashboard</code> → find it → Edit</td></tr>
+    <tr><td>Delete a product</td><td><code>/admin/dashboard</code> → find it → Delete (cannot be undone)</td></tr>
+    <tr><td>Share a product link directly with a buyer</td><td><code>/admin/dashboard</code> → find it → Copy URL</td></tr>
+    <tr><td>Check if I'm missing any buy requests</td><td><code>/admin/dashboard</code> (and check Telegram / Tawk.to for notifications)</td></tr>
+    <tr><td>Switch the site to dark mode</td><td>Tap the sun/moon icon in the header (works for you AND customers, separately)</td></tr>
+  </table>
+
+  <footer>FAIT Gadgets E-Store — User Manual · Updated 2026-06-26 (Session 9 — Meta WhatsApp Cloud API removed)</footer>
+
+</div>
+</body>
+</html>

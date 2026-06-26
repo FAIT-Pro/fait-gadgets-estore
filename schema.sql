@@ -14,7 +14,7 @@ create table if not exists products (
   category      text        default 'Other',
   image_url     text,
   status        text        default 'available',   -- 'available' | 'sold'
-  wa_message_id text,                              -- External message ID (Meta or "tg_"-prefixed Telegram) for deduplication
+  wa_message_id text,                              -- Telegram message ID ("tg_" prefix) or album ID ("tg_group_" prefix), for deduplication. Column name is a holdover from the original Meta WhatsApp integration (removed Session 9) — not worth a migration to rename.
   created_at    timestamptz default now(),
   updated_at    timestamptz default now()
 );

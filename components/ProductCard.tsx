@@ -73,8 +73,7 @@ export default function ProductCard({ product }: Props) {
     setSaved(!!localStorage.getItem(`saved_${product.id}`))
   }, [product.id])
 
-  const handleLike = async (e: React.MouseEvent) => {
-    e.preventDefault()   // Don't navigate to product page
+  const handleLike = async () => {
     const next = !liked
     setLiked(next)
     next
@@ -83,8 +82,7 @@ export default function ProductCard({ product }: Props) {
     if (next) await trackInteraction(product.id, product.name, 'like')
   }
 
-  const handleSave = async (e: React.MouseEvent) => {
-    e.preventDefault()
+  const handleSave = async () => {
     const next = !saved
     setSaved(next)
     next
@@ -98,75 +96,81 @@ export default function ProductCard({ product }: Props) {
     : 'Ask for price'
 
   return (
-    <Link href={`/product/${product.id}`} className="group block">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm
-                      hover:shadow-md transition-shadow duration-200 border border-gray-100 dark:border-gray-800">
+    // Outer wrapper is NOT a link — the like/save buttons live here as siblings
+    // of the <Link> below, not nested inside it. A <button> nested inside an
+    // <a> is invalid HTML and mobile browsers (iOS Safari especially) can
+    // swallow taps on it; keeping them as siblings makes tapping reliable.
+    <div className="relative group">
+      <Link href={`/product/${product.id}`} className="block">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl overflow-hidden shadow-sm
+                        hover:shadow-md transition-shadow duration-200 border border-gray-100 dark:border-gray-800">
 
-        {/* ── Product Image ─────────────────────────────────────────── */}
-        <div className="relative aspect-square bg-gray-100 dark:bg-gray-800">
-          {product.image_url ? (
-            <Image
-              src={product.image_url}
-              alt={product.name}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-              <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-              </svg>
-            </div>
-          )}
+          {/* ── Product Image ─────────────────────────────────────────── */}
+          <div className="relative aspect-square bg-gray-100 dark:bg-gray-800">
+            {product.image_url ? (
+              <Image
+                src={product.image_url}
+                alt={product.name}
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-gray-300">
+                <svg width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+              </div>
+            )}
+          </div>
 
-          {/* ── Like / Save buttons floating over image ──────────────── */}
-          <div className="absolute top-2 right-2 flex flex-col gap-1">
-            <button
-              onClick={handleLike}
-              aria-label="Like product"
-              className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full
-                         flex items-center justify-center shadow-sm
-                         hover:bg-white transition-colors"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24"
-                fill={liked ? '#e11d48' : 'none'}
-                stroke={liked ? '#e11d48' : '#6b7280'}
-                strokeWidth="2">
-                <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
-              </svg>
-            </button>
-            <button
-              onClick={handleSave}
-              aria-label="Save product"
-              className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full
-                         flex items-center justify-center shadow-sm
-                         hover:bg-white transition-colors"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24"
-                fill={saved ? '#0369a1' : 'none'}
-                stroke={saved ? '#0369a1' : '#6b7280'}
-                strokeWidth="2">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
-              </svg>
-            </button>
+          {/* ── Product Info ──────────────────────────────────────────── */}
+          <div className="p-3">
+            <span className={`badge text-[10px] mb-1 ${catStyle}`}>
+              {product.category}
+            </span>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white leading-tight truncate">
+              {product.name}
+            </h3>
+            <p className="price-tag mt-1 text-base">
+              {formattedPrice}
+            </p>
           </div>
         </div>
+      </Link>
 
-        {/* ── Product Info ──────────────────────────────────────────── */}
-        <div className="p-3">
-          <span className={`badge text-[10px] mb-1 ${catStyle}`}>
-            {product.category}
-          </span>
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white leading-tight truncate">
-            {product.name}
-          </h3>
-          <p className="price-tag mt-1 text-base">
-            {formattedPrice}
-          </p>
-        </div>
+      {/* ── Like / Save buttons floating over the image, outside the link ── */}
+      <div className="absolute top-2 right-2 flex flex-col gap-1">
+        <button
+          onClick={handleLike}
+          aria-label="Like product"
+          className="w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full
+                     flex items-center justify-center shadow-sm
+                     hover:bg-white active:scale-90 transition-all"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24"
+            fill={liked ? '#e11d48' : 'none'}
+            stroke={liked ? '#e11d48' : '#6b7280'}
+            strokeWidth="2">
+            <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
+          </svg>
+        </button>
+        <button
+          onClick={handleSave}
+          aria-label="Save product"
+          className="w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full
+                     flex items-center justify-center shadow-sm
+                     hover:bg-white active:scale-90 transition-all"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24"
+            fill={saved ? '#0369a1' : 'none'}
+            stroke={saved ? '#0369a1' : '#6b7280'}
+            strokeWidth="2">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
+          </svg>
+        </button>
       </div>
-    </Link>
+    </div>
   )
 }
