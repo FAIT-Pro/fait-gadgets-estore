@@ -431,6 +431,25 @@ characters) in quotes — `ADMIN_PASSWORD="FaitGadg3ts#2026"`. Verify with:
 node -e "const {loadEnvConfig}=require('@next/env'); loadEnvConfig(process.cwd(), true); console.log(JSON.stringify(process.env.ADMIN_PASSWORD))"
 ```
 
+### 15. Telegram free-text edit instructions (Session 8)
+Editing a Telegram message does NOT re-trigger the webhook — Telegram delivers edits as
+`update.edited_message`, and `app/api/telegram/route.ts` only reads `update.message`, so an
+edited caption is silently dropped. Before Session 8, sending a brand-new text message that
+wasn't exactly `SOLD` was *also* silently dropped — no error, no reply, nothing. This was
+reported as a real bug: a seller forgot a price, edited the Telegram caption (no effect),
+then sent a new message asking for the price to be added (also no effect, no feedback).
+
+Fix: any text that isn't `SOLD` is now sent to `interpretEditCommand()` (`lib/gemini.ts`)
+along with the most-recently-listed product's current details. Gemini decides whether it's
+an instruction to change `price`, `name`, `description`, or `category`, and returns
+`{ field, value }` (or `{ field: null, value: null }` if it's not an edit instruction at all
+— a greeting, a question, etc). The route applies the update via `supabaseAdmin`, calls
+`revalidatePath('/')` + `revalidatePath('/product/[id]')`, and **always replies** — either a
+confirmation (`✅ Updated price for "..." → ₦165,000`) or a "didn't understand" message with
+examples. Never silent, unlike the old behavior.
+Targets the most recent product by `created_at` regardless of status (not just `available`,
+unlike the `SOLD` command) so a price can still be fixed even if it was mistakenly marked sold.
+
 ---
 
 ## Known Bugs
@@ -502,12 +521,16 @@ Telegram webhook is registered with:
 | Mark product sold | Dashboard → Mark Sold button on the product row |
 | Edit a product | Dashboard → Edit button → full edit page → Save |
 
-## Seller Commands (live — via Telegram bot, Session 7)
+## Seller Commands (live — via Telegram bot, Session 7; free-text edits added Session 8)
 
 | Message sent to Telegram bot | What happens |
 |---|---|
 | Any image (with or without caption) | Product listed on store immediately (auto-published, `status: 'available'`), Telegram confirmation sent back |
+| Several images at once (an album) | Merged into ONE product with all photos attached (Session 8 fix — see Rule 13) |
 | Text: `SOLD` | Most recently listed available product marked as sold |
+| Any other text, e.g. `price 165000`, `change the name to...` | Interpreted by Gemini as an edit instruction for the MOST RECENTLY LISTED product (any status). Replies with a confirmation, or "didn't understand" if it's not an edit instruction — never silent. See Rule 15. |
+
+**Important:** editing a Telegram message (e.g. editing the caption after sending) does **not** trigger this webhook at all — Telegram delivers that as `update.edited_message`, which is explicitly ignored. Sending a **new** text message is the only way to correct a listing after the fact.
 
 ---
 

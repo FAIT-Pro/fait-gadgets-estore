@@ -26,7 +26,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse }            from 'next/server'
-import { extractProductInfo }                   from '@/lib/gemini'
+import { revalidatePath }                       from 'next/cache'
+import { extractProductInfo, interpretEditCommand } from '@/lib/gemini'
 import { uploadProductImage }                   from '@/lib/cloudinary'
 import { supabaseAdmin }                        from '@/lib/supabase'
 import { sendTelegramMessage, downloadTelegramFile, productListedMessage } from '@/lib/telegram'
@@ -52,11 +53,11 @@ export async function POST(request: NextRequest) {
     const chatId    = String(message.chat?.id)
     const messageId = message.message_id ? `tg_${message.message_id}` : null
 
-    // ── Handle "SOLD" text command ────────────────────────────────────────────
+    // ── Handle text messages: "SOLD" command, or a free-text edit instruction ──
     if (typeof message.text === 'string') {
-      const text = message.text.trim().toUpperCase()
+      const text = message.text.trim()
 
-      if (text === 'SOLD') {
+      if (text.toUpperCase() === 'SOLD') {
         const { data: latest } = await supabaseAdmin
           .from('products')
           .select('id, name')
@@ -75,9 +76,62 @@ export async function POST(request: NextRequest) {
         } else {
           await sendTelegramMessage(chatId, 'No available products to mark as sold.')
         }
+
+        return NextResponse.json({ ok: true })
       }
 
-      return NextResponse.json({ ok: true })
+      // Anything else: try to interpret it as an edit instruction for the
+      // most recently listed product (e.g. "price 165000", "change the name
+      // to..."). Note: editing a Telegram message's caption does NOT trigger
+      // this webhook at all — Telegram sends that as update.edited_message,
+      // which is ignored above — so a new text message is the only way to
+      // correct a listing after the fact.
+      const { data: latestProduct } = await supabaseAdmin
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (!latestProduct) {
+        await sendTelegramMessage(chatId, "You don't have any products listed yet — send a photo to list one.")
+        return NextResponse.json({ ok: true })
+      }
+
+      const command = await interpretEditCommand(text, {
+        name:     latestProduct.name,
+        price:    latestProduct.price,
+        currency: latestProduct.currency,
+        category: latestProduct.category,
+      })
+
+      if (!command.field) {
+        await sendTelegramMessage(
+          chatId,
+          `Sorry, I didn't understand that as an edit. Try something like "price 165000" ` +
+          `or "change the name to...". This applies to your most recent listing: "${latestProduct.name}".`
+        )
+        return NextResponse.json({ ok: true })
+      }
+
+      const { error: editError } = await supabaseAdmin
+        .from('products')
+        .update({ [command.field]: command.value })
+        .eq('id', latestProduct.id)
+
+      if (editError) throw editError
+
+      revalidatePath('/')
+      revalidatePath(`/product/${latestProduct.id}`)
+
+      const symbol       = latestProduct.currency === 'USD' ? '$' : '₦'
+      const displayValue = command.field === 'price'
+        ? `${symbol}${Number(command.value).toLocaleString()}`
+        : command.value
+
+      await sendTelegramMessage(chatId, `✅ Updated ${command.field} for "${latestProduct.name}" → ${displayValue}`)
+
+      return NextResponse.json({ ok: true, updated: command.field })
     }
 
     // ── Handle photo messages → list as product ───────────────────────────────

@@ -903,3 +903,91 @@ There is a narrow theoretical race if a straggler photo arrives in the exact sam
 | Documents updated | ✅ CLAUDE.md, SESSION_LOG.md |
 
 **Next session:** Run `schema.sql` in Supabase, deploy, live-test a real multi-photo album against production. Then continue with the carried-forward Session 7 priorities (retire Meta, resolve Vercel CLI account mismatch, analytics page).
+
+---
+
+---
+
+## Session 8 (continued) — 2026-06-26
+
+### What Was Done
+
+#### `schema.sql` migration run in Supabase ✅
+Owner ran the updated file. First attempt failed: `policy "Public can submit enquiries" for table "enquiries" already exists` — re-running the file hit a `create policy` statement left over from Session 6 with no `IF NOT EXISTS` equivalent, and since Supabase runs a pasted multi-statement script as one transaction, the error rolled back everything including the new `telegram_media_groups` table. Fixed by adding `drop policy if exists ...` / `drop trigger if exists ...` before every `create policy` / `create trigger` in `schema.sql`, so the whole file is now actually safely re-runnable as its own header comment claims. Re-run succeeded. Verified via Supabase REST API (`telegram_media_groups` table exists, `append_telegram_media_group()` RPC works, test row round-tripped and cleaned up).
+
+#### Dark mode + theme toggle — COMPLETE ✅
+Added a light/dark theme toggle across the storefront AND the admin panel, on request.
+- `tailwind.config.js`: `darkMode: 'class'`, added `brand-800` / `brand-900` shades for dark-mode accents
+- `components/ThemeToggle.tsx` (new): sun/moon button, toggles `dark` class on `<html>`, persists choice in `localStorage`
+- `app/layout.tsx`: inline blocking `<script>` in `<head>` applies the saved (or OS) theme before first paint — no flash of the wrong theme. `suppressHydrationWarning` added to `<html>` since the script can add `class="dark"` before React hydrates.
+- `app/globals.css`: dark variants on base body styles and the `.btn-primary` / `.btn-ghost` / `.price-tag` component classes
+- Dark variants added throughout the storefront (`app/page.tsx`, `app/product/[id]/page.tsx`, `ProductCard`, `SearchBar`, `ImageGallery`, `EnquireButton`, `BuyRequestModal`) and the entire admin panel (login, dashboard, upload form, edit form, `ImagePickerModal`)
+- Verified locally in browser: toggle switches the whole page, persists across reload with no flash
+
+#### BUG: Admin login password silently wrong locally — found and fixed ✅
+Owner reported `FaitGadg3ts#2026` rejected as wrong password locally (production was fine).
+Root cause: `.env.local` had `ADMIN_PASSWORD=FaitGadg3ts#2026` unquoted. Next.js's env loader
+(`@next/env`) treats an unquoted `#` as a comment delimiter, so it was loading just
+`FaitGadg3ts` locally (confirmed with `node -e "...loadEnvConfig...console.log(process.env.ADMIN_PASSWORD)"` → `"FaitGadg3ts"`, 11 chars). Vercel's dashboard stores env vars as raw strings with no comment-stripping, so production was unaffected — this was a local-only discrepancy. Fixed by quoting: `ADMIN_PASSWORD="FaitGadg3ts#2026"`. Documented as Rule 14.
+
+#### Admin password changed ✅
+Owner rotated the password to `19@George80` (their choice — same password reused on the
+unrelated BEATMAKER FX project, flagged to them as a reuse risk). Updated in `.env.local`
+(quoted) and on the Vercel dashboard. Verified locally via direct API call before and after.
+
+#### BUG 4: Telegram text messages other than "SOLD" were silently dropped — found and fixed ✅
+Owner sent a real multi-photo album to the bot (confirming the Session 8 album fix works in
+production) but forgot to include a price. Tried two ways to fix it, neither worked:
+1. Edited the Telegram message's caption to add the price — Telegram delivers message edits
+   as `update.edited_message`, which the webhook explicitly ignores (`if (!message) return`).
+   No code path reads edits at all.
+2. Sent a new text message asking for the price to be added — fell into the text handler,
+   but the only recognized command was an exact match on `SOLD`; anything else returned
+   `{ ok: true }` with zero action and zero reply. Completely silent failure.
+
+**Fix:**
+- `lib/gemini.ts`: new `interpretEditCommand(text, productContext)` — sends the seller's
+  message + the current product's name/price/currency/category to Gemini, asks it to decide
+  whether this is an instruction to change `price`, `name`, `description`, or `category`, and
+  returns `{ field, value }` (or `{ field: null, value: null }` if it's not an edit at all).
+  Price values are normalized to a plain number regardless of how the seller wrote it
+  (`₦165,000` → `165000`).
+- `app/api/telegram/route.ts`: any text that isn't `SOLD` now fetches the most-recently
+  created product (any status, not just `available`), calls `interpretEditCommand()`, applies
+  the update via `supabaseAdmin`, calls `revalidatePath('/')` + `revalidatePath('/product/[id]')`,
+  and **always sends a Telegram reply** — a confirmation with the new value, or a "didn't
+  understand, try ..." message with examples. Never silent again.
+
+**Live-tested against the owner's actual problem, not just synthetically:** confirmed the
+most recent product in the database was "TP-Link Deco XE200 WiFi 6E Mesh" with `price: null`
+— exactly the listing the owner had been trying to fix. Sent their exact message text
+(`"update price to ₦165,000"`) through the fixed code locally (against the real Supabase
+database and real Telegram bot token) and verified via direct Supabase REST query that
+`price` became `165000.00`. The owner's real listing was fixed as a side effect of testing.
+
+### TypeScript / Build
+```bash
+npx tsc --noEmit   # → 0 errors
+npm run build      # ✓ Compiled successfully, no new warnings
+```
+
+### Git / Deploy
+- Snapshot branch `snapshot-v7-before-session8` created from the pre-session commit (`7a48067`) and pushed, per the project's branch rule
+- Commit `88587bf` — "feat: Session 8 — Telegram multi-photo album fix, storefront + admin dark mode" — 27 files changed
+- Pushed to `main`; Vercel CLI still on the wrong account (`affionbassey-7467`, known issue since Session 7) so relied on `git push` → Vercel's GitHub auto-deploy, per the documented workaround
+- Confirmed live: polled production until the new dark-mode toggle appeared in the homepage HTML
+- BUG 4 fix (Telegram free-text edits) was committed and pushed in a follow-up commit after the album-fix/dark-mode commit, same session
+
+### Final State After Session 8 (continued)
+
+| Item | Status |
+|---|---|
+| Telegram multi-photo album fix | ✅ Live in production, confirmed by a real owner test |
+| Dark mode (storefront + admin) | ✅ Live in production |
+| Admin password local-loading bug | ✅ Fixed (`.env.local` quoting) |
+| Admin password | ✅ Rotated to `19@George80`, updated on Vercel |
+| BUG 4 (Telegram silent text-edit failure) | ✅ Fixed, tested against owner's real listing |
+| Snapshot branch | ✅ `snapshot-v7-before-session8` pushed |
+| TypeScript / Build | ✅ 0 errors, clean |
+
+**Next session:** Continue carried-forward Session 7 priorities — retire Meta WhatsApp Cloud API (swap remaining `notifySeller()` calls to `sendTelegramMessage()`), resolve the Vercel CLI account mismatch, analytics page using `product_stats`.
