@@ -38,7 +38,7 @@ export const maxDuration = 60
 
 // How long to wait after each album photo before checking whether it was the
 // last one to arrive. Telegram typically delivers an entire album within ~1s.
-const MEDIA_GROUP_WAIT_MS = 2000
+const MEDIA_GROUP_WAIT_MS = 8000
 
 export async function POST(request: NextRequest) {
   try {
@@ -310,16 +310,29 @@ async function handleAlbumPhoto({
   return NextResponse.json({ ok: true, product })
 }
 
-// A photo arrived after its album was already turned into a product (rare —
-// only happens if a straggler shows up more than MEDIA_GROUP_WAIT_MS late).
+// A photo arrived after its album was already turned into a product.
+// The product may still be mid-creation (Gemini + Supabase insert), so we
+// poll briefly before giving up — avoids silently losing late-arriving photos.
 async function attachLatePhotoToProduct(groupKey: string, imageUrl: string) {
-  const { data: product } = await supabaseAdmin
-    .from('products')
-    .select('id, image_urls')
-    .eq('wa_message_id', groupKey)
-    .maybeSingle()
+  let product = null as { id: string; image_urls: string[] } | null
+
+  // Poll for up to 15s — product creation (Gemini + insert) typically takes 2-5s
+  for (let attempt = 0; attempt < 15; attempt++) {
+    const { data } = await supabaseAdmin
+      .from('products')
+      .select('id, image_urls')
+      .eq('wa_message_id', groupKey)
+      .maybeSingle()
+
+    if (data) { product = data; break }
+    await new Promise(r => setTimeout(r, 1000))
+  }
 
   if (!product) return
+
+  // Avoid adding duplicates (the first photo is already in image_urls)
+  const existing = new Set(product.image_urls ?? [])
+  if (existing.has(imageUrl)) return
 
   await supabaseAdmin
     .from('products')
