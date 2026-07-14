@@ -76,7 +76,9 @@ export default async function ProductPage({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
             </svg>
           </Link>
-          <h1 className="font-semibold text-gray-800 dark:text-gray-100 truncate flex-1">{p.name}</h1>
+          <Link href="/" className="flex-1 min-w-0">
+            <h1 className="font-semibold text-gray-800 dark:text-gray-100 truncate">{p.name}</h1>
+          </Link>
           <ThemeToggle />
         </div>
       </header>

@@ -52,10 +52,10 @@ export default async function StorePage({
       <header className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800
                          sticky top-0 z-20 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
-          <div>
+          <a href="/" className="block">
             <h1 className="text-lg font-bold text-gray-900 dark:text-white">{storeName}</h1>
             <p className="text-xs text-gray-400 dark:text-gray-500">{items.length} items available</p>
-          </div>
+          </a>
           <div className="flex items-center gap-2">
             {/* Live search — Suspense required for useSearchParams in App Router */}
             <Suspense fallback={
