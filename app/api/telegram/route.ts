@@ -72,6 +72,8 @@ export async function POST(request: NextRequest) {
             .update({ status: 'sold' })
             .eq('id', latest.id)
 
+          revalidatePath('/')
+          revalidatePath(`/product/${latest.id}`)
           await sendTelegramMessage(chatId, `🎉 Marked as SOLD: "${latest.name}"`)
         } else {
           await sendTelegramMessage(chatId, 'No available products to mark as sold.')
@@ -190,6 +192,8 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
 
+    revalidatePath('/')
+
     // ── Step 5: Confirm in the Telegram chat ───────────────────────────────────
     const productUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/product/${product.id}`
     await sendTelegramMessage(chatId, productListedMessage(productInfo.name, productInfo.price, productUrl))
@@ -301,6 +305,9 @@ async function handleAlbumPhoto({
 
   if (error) throw error
 
+  revalidatePath('/')
+  revalidatePath(`/product/${product.id}`)
+
   const productUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/product/${product.id}`
   await sendTelegramMessage(
     chatId,
@@ -338,4 +345,6 @@ async function attachLatePhotoToProduct(groupKey: string, imageUrl: string) {
     .from('products')
     .update({ image_urls: [...(product.image_urls ?? []), imageUrl] })
     .eq('id', product.id)
+
+  revalidatePath(`/product/${product.id}`)
 }
