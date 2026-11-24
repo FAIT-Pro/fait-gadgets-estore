@@ -8,11 +8,25 @@ import Link               from 'next/link'
 import { notFound }       from 'next/navigation'
 import EnquireButton      from '@/components/EnquireButton'
 import ImageGallery       from '@/components/ImageGallery'
+import ProductCard        from '@/components/ProductCard'
+import PolicyModal        from '@/components/PolicyModal'
 import ThemeToggle        from '@/components/ThemeToggle'
 import type { Metadata }  from 'next'
 import type { Product }   from '@/lib/supabase'
 
 export const revalidate = 600
+
+const DELIVERY_POLICY = [
+  'Orders are confirmed after the seller contacts you.',
+  'Delivery within Lagos is arranged directly with the seller; nationwide delivery is available by arrangement.',
+  'Delivery fees and timelines are confirmed before payment.',
+]
+
+const RETURN_POLICY = [
+  'Please inspect your item on delivery.',
+  'Report damaged or wrong items within 24 hours.',
+  'Returns are accepted only for faulty or incorrect items, subject to seller approval.',
+]
 
 export async function generateMetadata({
   params,
@@ -36,12 +50,17 @@ const categoryStyle: Record<string, string> = {
   'Other':         'bg-gray-100 text-gray-600',
 }
 
+function formatPrice(product: Product): string {
+  if (!product.price) return 'Price on enquiry'
+  const symbol = product.currency === 'NGN' ? '₦' : '$'
+  return `${symbol}${Number(product.price).toLocaleString()}`
+}
+
 export default async function ProductPage({
   params,
 }: {
   params: { id: string }
 }) {
-  // Use supabaseAdmin so sold/draft products are accessible (fixes the 404 bug for sold items)
   const { data: product } = await supabaseAdmin
     .from('products')
     .select('*')
@@ -52,82 +71,138 @@ export default async function ProductPage({
 
   const p = product as Product
 
-  // Build the images array — use image_urls if available, else fall back to image_url
+  if (p.status === 'draft') notFound()
+
   const images: string[] = (p.image_urls && p.image_urls.length > 0)
     ? p.image_urls
     : (p.image_url ? [p.image_url] : [])
 
-  const catStyle       = categoryStyle[p.category] || categoryStyle['Other']
-  const formattedPrice = p.price
-    ? `${p.currency === 'NGN' ? '₦' : '$'}${Number(p.price).toLocaleString()}`
-    : 'Price on enquiry'
+  const catStyle = categoryStyle[p.category] || categoryStyle['Other']
+  const formattedPrice = formatPrice(p)
+  const storeName = process.env.NEXT_PUBLIC_STORE_NAME || 'My Store'
+  const sellerPhone = process.env.NEXT_PUBLIC_SELLER_PHONE
+  const sellerWhatsapp = process.env.NEXT_PUBLIC_SELLER_WHATSAPP
+  const sellerAddress = process.env.NEXT_PUBLIC_SELLER_ADDRESS
+  const sellerHours = process.env.NEXT_PUBLIC_SELLER_HOURS
 
-  // Don't show draft products to the public
-  if (p.status === 'draft') notFound()
+  let related: Product[] = []
+
+  const { data: sameCategory } = await supabaseAdmin
+    .from('products')
+    .select('*')
+    .eq('status', 'available')
+    .eq('category', p.category)
+    .neq('id', p.id)
+    .order('updated_at', { ascending: false })
+    .limit(4)
+
+  related = (sameCategory || []) as Product[]
+
+  if (related.length === 0) {
+    const { data: recent } = await supabaseAdmin
+      .from('products')
+      .select('*')
+      .eq('status', 'available')
+      .neq('id', p.id)
+      .order('updated_at', { ascending: false })
+      .limit(4)
+    related = (recent || []) as Product[]
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
 
-      {/* ── Navigation bar ──────────────────────────────────────────────────── */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">
-          <Link href="/" className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+      <header className="sticky top-0 z-10 border-b border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
+        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
+          <Link href="/" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" aria-label="Back to products">
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          <Link href="/" className="flex-1 min-w-0">
-            <h1 className="font-semibold text-gray-800 dark:text-gray-100 truncate">{p.name}</h1>
+          <Link href="/" className="hidden text-xs text-gray-400 hover:text-brand-600 sm:block dark:text-gray-500">
+            {storeName}
           </Link>
           <ThemeToggle />
+          <div className="min-w-0 flex-1 text-right">
+            <h1 className="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">{p.name}</h1>
+            <p className="truncate text-[11px] text-gray-400 dark:text-gray-500">{p.category}</p>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-6">
+      <main className="mx-auto max-w-2xl px-4 py-6">
 
-        {/* ── Image gallery ─────────────────────────────────────────────────── */}
         <ImageGallery
           images={images}
           productName={p.name}
           isSold={p.status === 'sold'}
         />
 
-        {/* ── Product details card ─────────────────────────────────────────── */}
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
-          <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="mb-3 flex items-start justify-between gap-3">
             <div>
-              <span className={`badge text-xs mb-2 ${catStyle}`}>{p.category}</span>
+              <span className={`badge mb-2 text-xs ${catStyle}`}>{p.category}</span>
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">{p.name}</h2>
             </div>
-            <div className="text-right shrink-0">
+            <div className="shrink-0 text-right">
               <p className="text-2xl font-bold text-brand-700 dark:text-brand-500">{formattedPrice}</p>
               {p.status === 'available' && (
-                <span className="text-xs text-green-600 dark:text-green-400 font-medium">✓ Available</span>
+                <span className="text-xs font-medium text-green-600 dark:text-green-400">✓ Available</span>
               )}
             </div>
           </div>
 
           {p.description && (
-            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-5">{p.description}</p>
+            <p className="mb-5 text-sm leading-relaxed text-gray-600 dark:text-gray-400">{p.description}</p>
           )}
 
-          <div className="flex gap-3">
-            {p.status === 'available' ? (
-              <EnquireButton
-                productId={p.id}
-                productName={p.name}
-                formattedPrice={formattedPrice}
-              />
-            ) : (
-              <div className="flex-1 text-center py-3 bg-gray-100 dark:bg-gray-800 rounded-xl text-gray-400 dark:text-gray-500 font-medium">
-                This item has been sold
-              </div>
-            )}
+          {p.status === 'available' ? (
+            <EnquireButton
+              productId={p.id}
+              productName={p.name}
+              formattedPrice={formattedPrice}
+              sellerPhone={sellerPhone}
+              sellerWhatsapp={sellerWhatsapp}
+            />
+          ) : (
+            <div className="flex-1 rounded-xl bg-gray-100 py-3 text-center font-medium text-gray-400 dark:bg-gray-800 dark:text-gray-500">
+              This item has been sold
+            </div>
+          )}
+
+          {(sellerAddress || sellerHours) && (
+            <div className="mt-5 rounded-xl bg-gray-50 p-4 text-sm dark:bg-gray-800/50">
+              <h3 className="mb-2 font-semibold text-gray-800 dark:text-gray-100">Seller information</h3>
+              {sellerAddress && (
+                <p className="text-gray-600 dark:text-gray-300">📍 {sellerAddress}</p>
+              )}
+              {sellerHours && (
+                <p className="mt-1 text-gray-600 dark:text-gray-300">🕒 {sellerHours}</p>
+              )}
+            </div>
+          )}
+
+          <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-gray-100 pt-4 dark:border-gray-800">
+            <PolicyModal label="Delivery Arrangement" title="Delivery Arrangement" body={DELIVERY_POLICY} />
+            <PolicyModal label="Return Policy" title="Return Policy" body={RETURN_POLICY} />
           </div>
         </div>
 
-        <div className="text-center mt-6">
-          <Link href="/" className="text-sm text-brand-600 dark:text-brand-400 hover:underline">
+        {related.length > 0 && (
+          <section className="mt-8">
+            <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">
+              Similar products
+            </h2>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:gap-3">
+              {related.map(item => (
+                <ProductCard key={item.id} product={item} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        <div className="mt-6 text-center">
+          <Link href="/" className="text-sm text-brand-600 hover:underline dark:text-brand-400">
             ← Browse more products
           </Link>
         </div>

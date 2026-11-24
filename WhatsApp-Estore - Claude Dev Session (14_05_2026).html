@@ -723,8 +723,8 @@ Source: lib/supabase.ts (14:2) @ process
   <div class="bubble">I have copied the supabase values
 
 URL: https://nbijqijxqjattrquzocb.supabase.co
-ANON KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5iaWpxaWp4cWphdHRycXV6b2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3OTM5MjYsImV4cCI6MjA5NDM2OTkyNn0.mJa7kdmKj3MZK8CEyzewgfbo8iDkXS2MEsEKoThoUR0
-SERVICE_ROLE KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5iaWpxaWp4cWphdHRycXV6b2NiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODc5MzkyNiwiZXhwIjoyMDk0MzY5OTI2fQ.LQtKt3iGr5U0JjbGWpYzbFUpoGi8QDJd4jIpD8ZHmR4</div>
+ANON KEY: [REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]
+SERVICE_ROLE KEY: [REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]</div>
 </div>
 
 <div class="turn assistant">
@@ -802,13 +802,13 @@ Want to continue with <strong>Step 2 — Cloudinary</strong> now?</div>
 <div class="turn user">
   <div class="label">Felix</div>
   <div class="bubble">Cloud name: dfg0a7tzq
-API Key: 724116592859517
-API Secret: ZUplPYJHuM5v-4erTIZ0j3Q6zNc</div>
+API Key: [REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]
+API Secret: [REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]</div>
 </div>
 
 <div class="turn assistant">
   <div class="label">Claude</div>
-  <div class="bubble"><em>[Updated .env.local — CLOUDINARY_CLOUD_NAME=dfg0a7tzq, CLOUDINARY_API_KEY=724116592859517, CLOUDINARY_API_SECRET=ZUplPYJHuM5v-4erTIZ0j3Q6zNc]</em>
+  <div class="bubble"><em>[Updated .env.local — CLOUDINARY_CLOUD_NAME=dfg0a7tzq, CLOUDINARY_API_KEY=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md], CLOUDINARY_API_SECRET=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]]</em>
 
 Done. Moving to Step 3 — Google Gemini AI.
 
@@ -820,15 +820,15 @@ Done. Moving to Step 3 — Google Gemini AI.
 <!-- ═══════════════════════════════════════════════════════════════ -->
 <div class="turn user">
   <div class="label">Felix</div>
-  <div class="bubble">API Key: AIzaSyCf_AzlpnPnGI4_0KUjUPjD9bz-s84elFk
-Name: AIzaSyCf_AzlpnPnGI4_0KUjUPjD9bz-s84elFk
+  <div class="bubble">API Key: [REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]
+Name: [REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]
 Project name: projects/960570393775
 Project number: 960570393775</div>
 </div>
 
 <div class="turn assistant">
   <div class="label">Claude</div>
-  <div class="bubble"><em>[Updated .env.local — GEMINI_API_KEY=AIzaSyCf_AzlpnPnGI4_0KUjUPjD9bz-s84elFk]</em>
+  <div class="bubble"><em>[Updated .env.local — GEMINI_API_KEY=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]]</em>
 
 Done. Only the API key is needed — project name and number are Google's internal references, not used in code.
 
@@ -1351,7 +1351,7 @@ Cloudinary is fixed. Now Gemini is failing — <code>gemini-1.5-flash</code> has
 
 <strong>Checking what models are actually available for this API key:</strong>
 
-<pre><code>curl -s "https://generativelanguage.googleapis.com/v1/models?key=AIzaSyCf_AzlpnPnGI4_0KUjUPjD9bz-s84elFk" \
+<pre><code>curl -s "https://generativelanguage.googleapis.com/v1/models?key=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]" \
   | python3 -c "
 import json,sys
 d=json.load(sys.stdin)
@@ -3668,9 +3668,9 @@ app/admin/dashboard/ProductActions.tsx(226,14): error TS2367:
 
   <!-- ── Gemini key format clarification ─────────────────────────── -->
   <div class="exchange">
-    <div class="user-msg">Look at the screenshot and tell me am wrong [Google AI Studio screenshot showing new Gemini API key starting with AQ.Ab8...]</div>
+    <div class="user-msg">Look at the screenshot and tell me am wrong [Google AI Studio screenshot showing new Gemini API key starting with [REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]]</div>
     <div class="claude-msg">
-      <p>You're right — I was wrong to flag that format as invalid. Google AI Studio has started issuing API keys in a new format (<code>AQ.Ab8...</code>) in addition to the older <code>AIzaSy...</code> format. Both are valid. I apologise for the confusion. The key you have is correct and working.</p>
+      <p>You're right — I was wrong to flag that format as invalid. Google AI Studio has started issuing API keys in a new format (<code>[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]</code>) in addition to the older <code>AIzaSy...</code> format. Both are valid. I apologise for the confusion. The key you have is correct and working.</p>
     </div>
   </div>
 
@@ -3697,8 +3697,8 @@ app/admin/dashboard/ProductActions.tsx(226,14): error TS2367:
       <table border="1" cellpadding="6" style="border-collapse:collapse;">
         <tr><th>Service</th><th>Purpose</th><th>Login</th><th>Dashboard</th></tr>
         <tr><td>Supabase</td><td>PostgreSQL database</td><td>secretfelicotaita@gmail.com</td><td>supabase.com/dashboard/project/nbijqijxqjattrquzocb</td></tr>
-        <tr><td>Cloudinary</td><td>Image CDN &amp; storage</td><td>secretfelicotaita@gmail.com — Cloud: <code>fait</code>, API key: 724116592859517</td><td>console.cloudinary.com</td></tr>
-        <tr><td>Google Gemini AI</td><td>AI product analysis</td><td>secretfelicotaita@gmail.com — key: AQ.Ab8RN6J...</td><td>aistudio.google.com/apikey</td></tr>
+        <tr><td>Cloudinary</td><td>Image CDN &amp; storage</td><td>secretfelicotaita@gmail.com — Cloud: <code>fait</code>, API key: [REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]</td><td>console.cloudinary.com</td></tr>
+        <tr><td>Google Gemini AI</td><td>AI product analysis</td><td>secretfelicotaita@gmail.com — key: [REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]</td><td>aistudio.google.com/apikey</td></tr>
         <tr><td>Meta (Facebook)</td><td>WhatsApp Cloud API — bot + seller notifications</td><td>Felix's Facebook account — App ID: meta dev console</td><td>developers.facebook.com</td></tr>
         <tr><td>Vercel</td><td>Hosting + auto-deploy</td><td>fait-gadgets-estore project (different account from fait-blog-3543)</td><td>vercel.com/dashboard</td></tr>
         <tr><td>Tawk.to</td><td>Live chat widget</td><td>NOT YET SET UP — NEXT_PUBLIC_TAWKTO_ID is empty</td><td>tawk.to</td></tr>
@@ -3880,7 +3880,7 @@ if (p.status === 'draft') notFound()</code></pre>
     <p><strong>Session 4 summary</strong></p>
     <ul>
       <li>Cloudinary cloud name corrected: <code>dfg0a7tzq</code> → <code>fait</code>. Full analyze pipeline now confirmed working.</li>
-      <li>Gemini API key new format (<code>AQ.Ab8...</code>) confirmed valid. Updated on Vercel.</li>
+      <li>Gemini API key new format (<code>[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]</code>) confirmed valid. Updated on Vercel.</li>
       <li>All stale services and code removed: Green API, CallMeBot, <code>@google/generative-ai</code> SDK, <code>*.green-api.com</code> image domain, <code>WEBHOOK_SECRET</code>.</li>
       <li>Multi-image support implemented: up to 6 photos per product. <code>image_urls TEXT[]</code> column, <code>ImageGallery</code> component, thumbnail strip in upload and edit forms.</li>
       <li>BUG 1 fixed: sold products now show SOLD overlay instead of 404.</li>
@@ -3915,7 +3915,7 @@ if (p.status === 'draft') notFound()</code></pre>
       <p>Read <code>.env.local</code> — both correct:</p>
       <ul>
         <li><code>META_APP_SECRET=23e48f43a4847a0830ca541423f289f3</code> ✅ valid 32-char hex format</li>
-        <li><code>ADMIN_PASSWORD=FaitGadg3ts#2026</code> ✅</li>
+        <li><code>ADMIN_PASSWORD=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]</code> ✅</li>
       </ul>
       <p>Remember to add both to Vercel dashboard and redeploy.</p>
     </div>
@@ -3996,7 +3996,7 @@ if (appSecret) {
 
 const body = JSON.parse(rawBody)</code></pre>
 
-      <p><strong>ADMIN_PASSWORD:</strong> changed to <code>FaitGadg3ts#2026</code> in .env.local.<br/>
+      <p><strong>ADMIN_PASSWORD:</strong> changed to <code>[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]</code> in .env.local.<br/>
       <strong>META_APP_SECRET:</strong> placeholder added to .env.local with instructions.<br/>
       <strong>schema.sql:</strong> wa_message_id comment changed from "Green API message ID" to "Meta message ID".</p>
 
@@ -4094,7 +4094,7 @@ curl -s -X POST https://fait-gadgets-estore.vercel.app/api/webhook \
     <ul>
       <li>Image library picker built and deployed — reuse existing photos without re-uploading</li>
       <li>BUG 2 fully fixed — webhook rejects all forged requests, verified live in production</li>
-      <li>ADMIN_PASSWORD strengthened to <code>FaitGadg3ts#2026</code></li>
+      <li>ADMIN_PASSWORD strengthened to <code>[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]</code></li>
       <li>Tawk.to live chat activated — <code>NEXT_PUBLIC_TAWKTO_ID</code> set</li>
       <li>META_APP_SECRET set — webhook security active</li>
       <li>GitHub PAT redacted from session log history via filter-branch</li>
@@ -4757,8 +4757,8 @@ export async function downloadTelegramFile(fileId: string): Promise&lt;string&gt
   </div>
   <div class="turn user">
     <div class="label">Felix</div>
-    <div class="bubble">Ngrok token: 3FUarKGdPfGRvwoVpHWwDpiA4F1_7sN9H38DArVaBrVSBJi7X
-Telegram Bot: 8831963972:AAFopI9CfGvefmUxdfWi6P9t7y-8IfEEoiY</div>
+    <div class="bubble">Ngrok token: [REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]
+Telegram Bot: [REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]</div>
   </div>
   <div class="turn assistant">
     <div class="label">Claude</div>
@@ -4780,10 +4780,10 @@ curl -s "https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates"
     <div class="label">Claude</div>
     <div class="bubble">
       <p>Expected — no code is running to respond yet. Re-checked getUpdates and found the chat ID:</p>
-      <pre><code>"chat":{"id":1478850085,"first_name":"Felix","username":"FELICOTA","type":"private"}</code></pre>
+      <pre><code>"chat":{"id":[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md],"first_name":"Felix","username":"FELICOTA","type":"private"}</code></pre>
       <p>Added both values to .env.local:</p>
-      <pre><code>TELEGRAM_BOT_TOKEN=8831963972:AAFopI9CfGvefmUxdfWi6P9t7y-8IfEEoiY
-TELEGRAM_CHAT_ID=1478850085</code></pre>
+      <pre><code>TELEGRAM_BOT_TOKEN=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]
+TELEGRAM_CHAT_ID=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]</code></pre>
       <pre><code>npm run dev   # → Ready in 3.2s, http://localhost:3000
 ngrok http 3000  # → https://parting-travel-truth.ngrok-free.dev
 
@@ -4914,8 +4914,53 @@ curl "https://api.telegram.org/bot&lt;TOKEN&gt;/setWebhook?url=https://fait-gadg
 </div>
 
 <hr />
+
+<div style="margin-top:24px; padding:16px; background:#0a2510; border-left:4px solid #25D366; border-radius:6px; color:#b3ffcc;">
+  <p><strong>Session 10 — 360° audit and critical fixes (23 Nov 2026)</strong></p>
+  <ul>
+    <li>Audit: storefront/admin/Supabase/deploys healthy, but Telegram webhook was unregistered (9 queued updates) and the public repo contained live secrets in tracked docs.</li>
+    <li>Fix 1: webhook route now checks the Telegram <code>X-Telegram-Bot-Api-Secret-Token</code> header against <code>TELEGRAM_WEBHOOK_SECRET</code>, and ignores chats other than <code>TELEGRAM_CHAT_ID</code>. Unauthorized requests still return HTTP 200.</li>
+    <li>Fix 2: all current secret values redacted from the tracked docs; <code>SECRET_ROTATION_CHECKLIST.md</code> created with mandatory per-service rotation steps.</li>
+    <li>Fix 3: webhook re-registered with <code>secret_token</code>; <code>getWebhookInfo</code> shows the correct URL and 0 pending updates.</li>
+    <li>Fix 4: the 9 queued updates were replayed before clearing — one 8-photo product, price ₦257,000, seller's exact name/description applied.</li>
+    <li>Verified: no/wrong secret → <code>{"ok":false}</code>; valid secret → <code>{"ok":true}</code>; foreign chat ignored; <code>npm run build</code> clean.</li>
+    <li>Owner added <code>TELEGRAM_WEBHOOK_SECRET</code> to the Vercel dashboard on 24 Nov 2026 before this push — without it the new route rejects every Telegram delivery.</li>
+  </ul>
+</div>
+
+<div style="margin-top:24px; padding:16px; background:#0a2510; border-left:4px solid #25D366; border-radius:6px; color:#b3ffcc;">
+  <p><strong>Session 11 — reply-aware edits and Cloudinary folders (23 Nov 2026)</strong></p>
+  <ul>
+    <li>Confirmed the old behaviour: a reply adding a price was treated as a new text but edited the <em>most recent</em> product, and only one field per message was understood.</li>
+    <li>Fixed: replies to a product photo now target that exact product via <code>wa_message_id</code> (with up to 20s polling for albums still being finalized). Gemini now returns all requested fields in one edit.</li>
+    <li>Fixed: Telegram images now go into <code>estore-products/&lt;product-name&gt;/</code> with name-based filenames; albums stage in <code>_incoming</code> then get renamed. Admin uploads unchanged.</li>
+    <li>Verified live with temporary test data: reply edit changed price and category together; single photo and album URLs landed in the correct product folder; all test data cleaned up; build clean.</li>
+  </ul>
+</div>
+
+<div style="margin-top:24px; padding:16px; background:#0a2510; border-left:4px solid #25D366; border-radius:6px; color:#b3ffcc;">
+  <p><strong>Session 12 — storefront hero and product contact actions (24 Nov 2026)</strong></p>
+  <p><em>Owner:</em> "First a hero page that displays in slides the first three recently updated/ uploaded products while still having other products in small place holders displayed below the hero slideshow." Also requested: product name at top right, phone reveal, WhatsApp chat, similar products, Delivery Arrangement / Return Policy dialogs, Jiji-style request callback + share + store address/hours, and explicit approval before proceeding.</p>
+  <p><em>Owner approval:</em> approved all phases; requested Jiji features = Request callback, Share buttons, Store address / hours; policy text = short defaults; chose "I'll paste numbers now" but no numbers were supplied. Owner confirmed Request to Buy already works and asked for the exact success message <code>Seller will contact you on WhatsApp or call</code> plus WhatsApp/Call radio options because some numbers are not active on WhatsApp and Call signifies urgency. No live test was sent.</p>
+  <ul>
+    <li>New <code>components/HeroSlider.tsx</code>: 3 most recently updated available products, auto-advance 5s, pause on hover/focus, dots, arrows, mobile swipe.</li>
+    <li><code>app/page.tsx</code>: default view shows hero plus compact grid (<code>grid-cols-3 sm:grid-cols-4 md:grid-cols-6</code>) of remaining products; search/category views keep the normal grid and skip the hero.</li>
+    <li>New <code>components/ShareButtons.tsx</code>: Facebook, X, copy link, native share fallback.</li>
+    <li>New <code>components/PolicyModal.tsx</code>: Delivery Arrangement and Return Policy links open short default wording in an accessible dialog.</li>
+    <li><code>components/EnquireButton.tsx</code>: Request to Buy, Request callback, Tawk chat, phone reveal, <code>wa.me</code> chat link, ShareButtons.</li>
+    <li><code>components/BuyRequestModal.tsx</code>: WhatsApp/Call radio preference; callback button preselects Call; success text is now exactly "Seller will contact you on WhatsApp or call".</li>
+    <li><code>app/api/enquire/route.ts</code>: accepts <code>contactPreference</code>, stores <code>[Prefers: WhatsApp|Call]</code> with the enquiry, includes preferred contact in the Telegram notification, and returns an error if either Supabase insert fails.</li>
+    <li><code>app/product/[id]/page.tsx</code>: product name pinned top-right; seller address/hours shown when env vars are set; similar products from the same category (fallback: latest available) at the bottom.</li>
+    <li><code>.env.example</code> / <code>CLAUDE.md</code>: added <code>NEXT_PUBLIC_SELLER_PHONE</code>, <code>NEXT_PUBLIC_SELLER_WHATSAPP</code>, <code>NEXT_PUBLIC_SELLER_ADDRESS</code>, <code>NEXT_PUBLIC_SELLER_HOURS</code>. Buttons stay hidden until the first two are filled in.</li>
+    <li><em>Owner followed up:</em> "The number for both WhatsApp and call: +2348061563148 / Address: Andre Adeniyi Jones Estate Market, Ikeja, Lagos State / Hours: 9am to 6pm, Monday to Saturday at physical store".</li>
+    <li>Added to <code>.env.local</code>: <code>NEXT_PUBLIC_SELLER_PHONE=+2348061563148</code>, <code>NEXT_PUBLIC_SELLER_WHATSAPP=2348061563148</code>, <code>NEXT_PUBLIC_SELLER_ADDRESS=Andre Adeniyi Jones Estate Market, Ikeja, Lagos State</code>, <code>NEXT_PUBLIC_SELLER_HOURS=9am to 6pm, Monday to Saturday at physical store</code>. Phone/WhatsApp buttons and seller-info block are now visible locally.</li>
+    <li>Rebuild and local smoke test passed with the new values. Owner confirmed all four variables were added to Vercel on 24 Nov 2026; the GitHub integration redeploys after this push (Vercel CLI has no credentials on this machine).</li>
+  </ul>
+</div>
+
+<hr />
 <div style="color:#666; font-size:0.78rem; text-align:center; padding-top:16px; border-top:1px solid #222; margin-top:24px;">
-  Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 22 June 2026<br/>
+  Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 24 Nov 2026<br/>
   Felix Okon &amp; Claude Sonnet 4.6 — WEBSITE_AI_Generated_Xai/WhatsApp-estore<br/>
   <em>This file is the primary tutorial record of the project. Update verbatim every session alongside CLAUDE.md and SESSION_LOG.md.</em>
 </div>

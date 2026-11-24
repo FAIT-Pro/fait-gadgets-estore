@@ -11,38 +11,43 @@ import { sendTelegramMessage }        from '@/lib/telegram'
 
 export async function POST(request: NextRequest) {
   try {
-    const { productId, productName, buyerName, buyerPhone, message } = await request.json()
+    const { productId, productName, buyerName, buyerPhone, message, contactPreference } = await request.json()
 
     if (!buyerName?.trim() || !buyerPhone?.trim()) {
       return NextResponse.json({ error: 'Name and phone are required' }, { status: 400 })
     }
 
-    // Save buyer contact details
-    await supabaseAdmin.from('enquiries').insert({
+    const preference = contactPreference === 'call' ? 'Call' : 'WhatsApp'
+    const note = `[Prefers: ${preference}]`
+    const storedMessage = message?.trim() ? `${note} ${message.trim()}` : note
+
+    const enquiryResult = await supabaseAdmin.from('enquiries').insert({
       product_id:   productId   || null,
       product_name: productName || 'Unknown product',
       buyer_name:   buyerName.trim(),
       buyer_phone:  buyerPhone.trim(),
-      message:      message?.trim() || null,
+      message:      storedMessage,
     })
 
-    // Also log in interactions so the product stats view picks it up
+    if (enquiryResult.error) throw new Error(enquiryResult.error.message)
+
     if (productId) {
-      await supabaseAdmin.from('interactions').insert({
+      const interactionResult = await supabaseAdmin.from('interactions').insert({
         product_id: productId,
         type:       'enquiry',
         visitor_id: null,
       })
+      if (interactionResult.error) throw new Error(interactionResult.error.message)
     }
 
-    // Notify the seller with full buyer details
     const msgText = message?.trim() ? `\n\nMessage: "${message.trim()}"` : ''
     await sendTelegramMessage(
       process.env.TELEGRAM_CHAT_ID!,
       `🛒 New buy request!\n\n` +
       `📦 ${productName}\n` +
       `👤 ${buyerName.trim()}\n` +
-      `📱 ${buyerPhone.trim()}` +
+      `📱 ${buyerPhone.trim()}\n` +
+      `📞 Preferred contact: ${preference}` +
       msgText
     )
 

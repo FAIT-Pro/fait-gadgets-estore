@@ -2,7 +2,7 @@
 // ── components/ProductCard.tsx ────────────────────────────────────────────────
 // A single product tile in the store grid.
 // Shows the product image, name, price, category badge,
-// and Like / Save buttons that notify you on WhatsApp.
+// and Like / Save buttons that notify you on Telegram.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Image from 'next/image'

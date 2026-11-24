@@ -12,25 +12,22 @@ export type ProductInfo = {
   category: string
 }
 
+export type EditField = 'price' | 'name' | 'description' | 'category'
+
 export type EditCommand = {
-  field: 'price' | 'name' | 'description' | 'category' | null
+  field: EditField | null
   value: string | number | null
 }
 
-/**
- * Interprets a free-text message from the seller as an instruction to update
- * ONE field of their most recently listed product — e.g. "price 165000",
- * "change the price to ₦165,000", "update the name to...". Returns
- * { field: null, value: null } when the message isn't an edit instruction
- * (a greeting, a question, unrelated chat, etc).
- */
-export async function interpretEditCommand(
+export type ProductEdits = Partial<Record<EditField, string | number>>
+
+export async function interpretEditCommands(
   text: string,
   product: { name: string; price: number | null; currency: string; category: string }
-): Promise<EditCommand> {
+): Promise<ProductEdits> {
   const prompt = `
 You are helping a Nigerian online seller manage their store via chat messages.
-They just sent this message about the product they most recently listed:
+They just sent this message about one of their listed products:
 
 "${text}"
 
@@ -39,19 +36,19 @@ Current product details:
 - Price: ${product.price != null ? product.price : 'not set'} ${product.currency}
 - Category: ${product.category}
 
-Decide if this message is an instruction to update ONE field of this product.
+Decide which fields of this product this message instructs you to update.
 Return ONLY a valid JSON object — no markdown, no explanation:
 
-{
-  "field": "price" | "name" | "description" | "category" | null,
-  "value": "the new value, or null"
-}
+{ "edits": [ { "field": "price" | "name" | "description" | "category", "value": "..." } ] }
 
 Rules:
+- Return every field the seller asked to change, not just one. For example,
+  "price 165000 and category Electronics" must return two entries.
+- Fields are limited to: price, name, description, category.
 - If updating price, "value" must be a plain number with no symbols or commas (e.g. "₦165,000" → 165000).
 - If updating category, "value" must be exactly one of: Fashion, Electronics, Food & Drinks, Beauty, Home & Living, Other.
-- If the message is not an instruction to change this product (a greeting, a question, unrelated text), set "field" and "value" to null.
-- Only ever change ONE field per message.
+- If the message is not an instruction to change this product (a greeting, a question, unrelated text), return { "edits": [] }.
+- Never invent values the seller did not provide.
 `
 
   const apiKey = process.env.GEMINI_API_KEY!
@@ -77,16 +74,41 @@ Rules:
 
   try {
     const cleanText = rawText.replace(/```json|```/g, '').trim()
-    const parsed = JSON.parse(cleanText) as EditCommand
-    // Price always comes back as a number, however Gemini formatted it
-    if (parsed.field === 'price' && parsed.value != null) {
-      parsed.value = Number(String(parsed.value).replace(/[^0-9.]/g, ''))
+    const parsed = JSON.parse(cleanText) as { edits?: Array<{ field?: unknown; value?: unknown }> }
+    const allowed: EditField[] = ['price', 'name', 'description', 'category']
+    const categories = ['Fashion', 'Electronics', 'Food & Drinks', 'Beauty', 'Home & Living', 'Other']
+    const edits: ProductEdits = {}
+
+    for (const item of Array.isArray(parsed.edits) ? parsed.edits : []) {
+      if (!allowed.includes(item.field as EditField)) continue
+      if (item.value == null || String(item.value).trim() === '') continue
+
+      const field = item.field as EditField
+      if (field === 'price') {
+        const amount = Number(String(item.value).replace(/[^0-9.]/g, ''))
+        if (Number.isFinite(amount) && amount >= 0) edits.price = amount
+      } else if (field === 'category') {
+        const match = categories.find((c) => c.toLowerCase() === String(item.value).trim().toLowerCase())
+        if (match) edits.category = match
+      } else {
+        edits[field] = String(item.value).trim()
+      }
     }
-    return parsed
+
+    return edits
   } catch {
     console.error('Gemini edit-command parse error. Raw response:', rawText)
-    return { field: null, value: null }
+    return {}
   }
+}
+
+export async function interpretEditCommand(
+  text: string,
+  product: { name: string; price: number | null; currency: string; category: string }
+): Promise<EditCommand> {
+  const edits = await interpretEditCommands(text, product)
+  const field = (Object.keys(edits)[0] as EditField) ?? null
+  return { field, value: field ? edits[field] ?? null : null }
 }
 
 export async function extractProductInfo(

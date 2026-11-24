@@ -10,6 +10,7 @@ import { supabase }    from '@/lib/supabase'
 import ProductCard     from '@/components/ProductCard'
 import SearchBar       from '@/components/SearchBar'
 import ThemeToggle      from '@/components/ThemeToggle'
+import HeroSlider       from '@/components/HeroSlider'
 import type { Product } from '@/lib/supabase'
 
 // On-demand revalidation fires on every admin publish/edit/delete.
@@ -42,8 +43,22 @@ export default async function StorePage({
     query = query.ilike('name', `%${searchQuery}%`)
   }
 
+  const { data: heroData } = await supabase
+    .from('products')
+    .select('*')
+    .eq('status', 'available')
+    .order('updated_at', { ascending: false })
+    .limit(3)
+
+  const heroProducts = (heroData || []) as Product[]
+  const heroIds = new Set(heroProducts.map(product => product.id))
+  const isDefaultView = selectedCategory === 'All' && !searchQuery
+
   const { data: products } = await query
   const items = (products || []) as Product[]
+  const gridItems = isDefaultView
+    ? items.filter(product => !heroIds.has(product.id))
+    : items
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -88,9 +103,22 @@ export default async function StorePage({
         </div>
       </header>
 
-      {/* ── Product Grid ─────────────────────────────────────────────────────── */}
+      {/* ── Hero + compact product grid ────────────────────────────────────── */}
       <main className="max-w-5xl mx-auto px-4 py-5">
-        {items.length === 0 ? (
+        {isDefaultView && <HeroSlider products={heroProducts} />}
+
+        {isDefaultView && gridItems.length > 0 && (
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">More products</h2>
+            <span className="text-xs text-gray-400 dark:text-gray-500">{gridItems.length} items</span>
+          </div>
+        )}
+
+        {gridItems.length === 0 && isDefaultView && heroProducts.length > 0 ? (
+          <div className="py-10 text-center text-sm text-gray-400 dark:text-gray-500">
+            More products coming soon.
+          </div>
+        ) : gridItems.length === 0 ? (
           <div className="text-center py-24 text-gray-400 dark:text-gray-500">
             <p className="text-5xl mb-4">🛍️</p>
             <p className="text-base font-medium text-gray-500 dark:text-gray-400">No products yet</p>
@@ -101,8 +129,8 @@ export default async function StorePage({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
-            {items.map(product => (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 md:gap-3">
+            {gridItems.map(product => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>

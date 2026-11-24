@@ -212,7 +212,7 @@ All services reviewed, stale ones removed.
 | Service | Purpose | Account |
 |---|---|---|
 | Supabase | Database | secretfelicotaita@gmail.com |
-| Cloudinary | Image CDN | Cloud: `fait`, API key: 724116592859517 |
+| Cloudinary | Image CDN | Cloud: `fait`, API key: [REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md] |
 | Google Gemini AI | AI product analysis | secretfelicotaita@gmail.com |
 | Meta WhatsApp Cloud API | Bot + seller notifications | Felix's Facebook account |
 | Vercel | Hosting | fait-gadgets-estore project |
@@ -297,7 +297,7 @@ Sellers can now reuse existing product photos without re-uploading them.
 **Action needed:** Get `META_APP_SECRET` from Meta Developer Console → App → Settings → Basic → App Secret. Add to `.env.local` AND Vercel dashboard. Redeploy.
 
 #### ADMIN_PASSWORD Strengthened ✅
-Changed from `admin123` to `FaitGadg3ts#2026` in `.env.local`.
+Changed from `admin123` to `[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]` in `.env.local`.
 **Action needed:** Update this in Vercel dashboard too.
 
 #### META_APP_SECRET env var placeholder added ✅
@@ -312,7 +312,7 @@ Added to `.env.local` with instructions on where to find it.
 #### All env vars completed by owner ✅
 - `META_APP_SECRET=23e48f43a4847a0830ca541423f289f3` — set in `.env.local` + Vercel
 - `NEXT_PUBLIC_TAWKTO_ID=6a2a9f25f0b5881c2ac3e5a6/1jqr7rbgv` — set in `.env.local` + Vercel
-- `ADMIN_PASSWORD=FaitGadg3ts#2026` — set in `.env.local` + Vercel
+- `ADMIN_PASSWORD=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]` — set in `.env.local` + Vercel
 
 #### Commit and push — complications resolved
 
@@ -925,13 +925,13 @@ Added a light/dark theme toggle across the storefront AND the admin panel, on re
 - Verified locally in browser: toggle switches the whole page, persists across reload with no flash
 
 #### BUG: Admin login password silently wrong locally — found and fixed ✅
-Owner reported `FaitGadg3ts#2026` rejected as wrong password locally (production was fine).
-Root cause: `.env.local` had `ADMIN_PASSWORD=FaitGadg3ts#2026` unquoted. Next.js's env loader
+Owner reported `[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]` rejected as wrong password locally (production was fine).
+Root cause: `.env.local` had `ADMIN_PASSWORD=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]` unquoted. Next.js's env loader
 (`@next/env`) treats an unquoted `#` as a comment delimiter, so it was loading just
-`FaitGadg3ts` locally (confirmed with `node -e "...loadEnvConfig...console.log(process.env.ADMIN_PASSWORD)"` → `"FaitGadg3ts"`, 11 chars). Vercel's dashboard stores env vars as raw strings with no comment-stripping, so production was unaffected — this was a local-only discrepancy. Fixed by quoting: `ADMIN_PASSWORD="FaitGadg3ts#2026"`. Documented as Rule 14.
+`FaitGadg3ts` locally (confirmed with `node -e "...loadEnvConfig...console.log(process.env.ADMIN_PASSWORD)"` → `"FaitGadg3ts"`, 11 chars). Vercel's dashboard stores env vars as raw strings with no comment-stripping, so production was unaffected — this was a local-only discrepancy. Fixed by quoting: `ADMIN_PASSWORD="[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]"`. Documented as Rule 14.
 
 #### Admin password changed ✅
-Owner rotated the password to `19@George80` (their choice — same password reused on the
+Owner rotated the password to `[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]` (their choice — same password reused on the
 unrelated BEATMAKER FX project, flagged to them as a reuse risk). Updated in `.env.local`
 (quoted) and on the Vercel dashboard. Verified locally via direct API call before and after.
 
@@ -985,7 +985,7 @@ npm run build      # ✓ Compiled successfully, no new warnings
 | Telegram multi-photo album fix | ✅ Live in production, confirmed by a real owner test |
 | Dark mode (storefront + admin) | ✅ Live in production |
 | Admin password local-loading bug | ✅ Fixed (`.env.local` quoting) |
-| Admin password | ✅ Rotated to `19@George80`, updated on Vercel |
+| Admin password | ✅ Rotated to `[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]`, updated on Vercel |
 | BUG 4 (Telegram silent text-edit failure) | ✅ Fixed, tested against owner's real listing |
 | Snapshot branch | ✅ `snapshot-v7-before-session8` pushed |
 | TypeScript / Build | ✅ 0 errors, clean |
@@ -1108,3 +1108,142 @@ npm run build      # ✓ Compiled successfully — /api/webhook no longer in the
 
 **Next session:** Remove leftover `META_*` / `SELLER_PHONE` variables from the Vercel
 dashboard. Resolve the Vercel CLI account mismatch. Analytics page using `product_stats`.
+
+---
+
+## Session 10 — 360° audit and critical fixes (23 Nov 2026)
+
+### What the audit found
+- Production storefront, admin, Supabase RLS and GitHub→Vercel auto-deploy were healthy:
+  homepage/admin HTTP 200, 13 products public + 3 sold hidden by RLS, latest commit deployed.
+- `getWebhookInfo` showed **no webhook URL and 9 pending updates** — the primary Telegram
+  listing/notification channel was disconnected in production. The queued updates were one
+  8-photo album (23 Nov 13:23 UTC) plus a product-details text (13:52 UTC).
+- The webhook route trusted every POST and every chat. The repo is **public**, and live secrets
+  were present in the tracked HTML session log, `CLAUDE.md` and `SESSION_LOG.md`.
+- `npm run build` passed; `npm run lint` is not configured (drops into interactive ESLint setup);
+  there are no automated test files.
+
+### Fixes applied
+1. `app/api/telegram/route.ts` — added `X-Telegram-Bot-Api-Secret-Token` verification against
+   new env var `TELEGRAM_WEBHOOK_SECRET`, plus a `TELEGRAM_CHAT_ID` allowlist. Unauthorized
+   requests still return HTTP 200 (no Telegram retries). Documented as Rule 17 in `CLAUDE.md`.
+2. `.env.example` / `.env.local` — added `TELEGRAM_WEBHOOK_SECRET` (64-char random hex value in
+   `.env.local`). Owner added the same value to Vercel on 24 Nov 2026 before this push.
+3. Redacted all current secret values (and partial fragments) from the tracked docs.
+4. Registered the webhook with `secret_token` and `drop_pending_updates=true`;
+   `getWebhookInfo` now shows the correct URL and 0 pending updates.
+5. Replayed the 9 queued updates locally through the fixed route before clearing the queue:
+   the 8-photo album produced exactly one product, the text set the price to ₦257,000, and the
+   product's name/description were corrected to the seller's exact text via the admin API.
+6. Added `SECRET_ROTATION_CHECKLIST.md` with per-service rotation steps and deploy order.
+
+### Verification
+```
+no secret header  → POST /api/telegram → {"ok":false}
+wrong header      → POST /api/telegram → {"ok":false}
+valid header      → POST /api/telegram → {"ok":true}
+foreign chat      → ignored, no product mutation
+npm run build     → compiled successfully, 16 routes
+getWebhookInfo    → url set, pending_update_count=0
+```
+
+### Outstanding
+- Rotate all leaked secrets (see `SECRET_ROTATION_CHECKLIST.md`) — mandatory; git history still
+  contains them.
+- Add `TELEGRAM_WEBHOOK_SECRET` to Vercel **before** pushing the auth code.
+- Reconcile docs: code uses an 8s album debounce, docs say 2s; HTML session log is not a verbatim
+  record of Sessions 7–10.
+- Remaining medium items from the audit (notification timeouts, DB error checks, rate limiting,
+  PWA icons, lint/test setup) are not yet addressed.
+
+---
+
+## Session 11 — Reply-aware edits + Cloudinary product folders (23 Nov 2026)
+
+### Question from owner
+"If I uploaded part of the parameters in haste and then add the price by replying to the initial
+message which did not include price, will it understand?" — Answer: **partly before this change**.
+A reply was processed as a new text message, but the bot ignored `reply_to_message` and always
+edited the most recently listed product, and Gemini only returned ONE field per message.
+Both limitations are now fixed.
+
+### Changes
+- `lib/gemini.ts` — `interpretEditCommands()` returns `{ edits: [...] }` with every field the
+  seller mentioned; `interpretEditCommand()` kept as a one-field compatibility wrapper. Values
+  are validated (price numeric, category restricted to the six allowed values).
+- `app/api/telegram/route.ts` — `findEditTarget()` resolves a replied-to photo's `wa_message_id`
+  (`tg_<id>` or `tg_group_<id>`), polling up to 20s for an album still being finalized; plain
+  texts still target the latest product. Confirmation message lists every field changed.
+- `lib/cloudinary.ts` — added `productAssetSlug()`, `productAssetFolder()`, `telegramAssetName()`,
+  `renameProductImage()`; `uploadProductImage()` now accepts `folder` and `publicId`.
+- Single Telegram photo: Gemini runs on the downloaded bytes first, so the image is uploaded
+  straight into `estore-products/<slugified-product-name>/` as `<slug>-<hash>-1.jpg`.
+- Albums: photos stage in `estore-products/_incoming/`, then are renamed into the product folder
+  once Gemini supplies the name; late photos are renamed too. Admin uploads unchanged.
+
+### Verification (local dev server, production credentials)
+- Created a temporary test product with `wa_message_id = tg_987654321`, then sent a replied text
+  "price 2500 and category Electronics" → response `{"ok":true,"updated":["price","category"]}`,
+  product changed to price 2500 / Electronics. Test product deleted.
+- Replayed one saved Telegram photo as a single message → Cloudinary URL:
+  `.../estore-products/supermix-4-hybrid-in-ear-monitors/supermix-4-hybrid-in-ear-monitors-431abe-1.jpg`.
+- Replayed a 2-photo test album → both assets renamed into
+  `estore-products/simgot-supermix-4-hybrid-iems/` with `-1`/`-2` suffixes.
+- All test products and Cloudinary assets deleted afterwards.
+- `npm run build` → compiled successfully, 16 routes.
+
+### Note
+The owner reports the Vercel secret was rotated and `TELEGRAM_WEBHOOK_SECRET` added. It must be
+the **same value** as in `.env.local` AND as the `secret_token` used in `setWebhook` — otherwise
+production will reject every Telegram delivery. If `TELEGRAM_BOT_TOKEN` was also rotated,
+`setWebhook` must be re-run with the new token.
+
+---
+
+## Session 12 — Storefront hero + product contact actions (24 Nov 2026)
+
+### Approval before coding
+The owner was shown a phased plan and answered:
+- Approve all phases.
+- "I'll paste numbers now" — but no phone/WhatsApp numbers were included in the answer, so the
+  buttons are env-driven and hidden until `NEXT_PUBLIC_SELLER_PHONE` /
+  `NEXT_PUBLIC_SELLER_WHATSAPP` are filled in.
+- Jiji features requested: Request callback, Share buttons, Store address / hours. Thumbnail
+  gallery, safety tips, and specs table were not requested (thumbnail gallery already exists).
+- Policy text: use short default wording.
+- "I have confirmed it's working" for Request to Buy — no live test was sent. The owner asked for
+  the success message to say exactly "Seller will contact you on WhatsApp or call" and for
+  WhatsApp/Call radio options, because some numbers are not on WhatsApp and Call signifies urgency.
+
+### Changes
+- `components/HeroSlider.tsx` (new) — client component; 3 most recently updated available
+  products; auto-advance every 5s, pause on hover/focus, dots, prev/next arrows, mobile swipe.
+- `app/page.tsx` — fetches hero products separately with `.order('updated_at', { ascending: false }).limit(3)`;
+  homepage default view shows the hero and a compact `grid-cols-3 sm:grid-cols-4 md:grid-cols-6`
+  of the remaining products. Search/category views keep the existing grid and skip the hero.
+- `components/ShareButtons.tsx` (new) — Facebook, X, copy link, native share fallback.
+- `components/PolicyModal.tsx` (new) — reusable dialog; Delivery Arrangement and Return Policy
+  links now open short default wording.
+- `components/EnquireButton.tsx` — now renders Request to Buy, Request callback, Tawk chat,
+  phone reveal, WhatsApp link, and ShareButtons. WhatsApp link is a normal `wa.me` web link.
+- `components/BuyRequestModal.tsx` — added WhatsApp/Call radio preference (Call preselected for
+  the callback button); success text is now exactly "Seller will contact you on WhatsApp or call".
+- `app/api/enquire/route.ts` — accepts `contactPreference`, stores `[Prefers: WhatsApp|Call]` in
+  the enquiry message field, includes preferred contact in the Telegram notification, and now
+  returns an error if either Supabase insert fails (no more false success).
+- `app/product/[id]/page.tsx` — product name pinned top-right; seller address/hours shown when
+  env vars are set; similar products from the same category (fallback: latest available) at bottom.
+- `.env.example` / `CLAUDE.md` — added `NEXT_PUBLIC_SELLER_PHONE`, `NEXT_PUBLIC_SELLER_WHATSAPP`,
+  `NEXT_PUBLIC_SELLER_ADDRESS`, `NEXT_PUBLIC_SELLER_HOURS`.
+
+### Owner-supplied contact details (added to `.env.local`)
+- `NEXT_PUBLIC_SELLER_PHONE=+2348061563148`
+- `NEXT_PUBLIC_SELLER_WHATSAPP=2348061563148`
+- `NEXT_PUBLIC_SELLER_ADDRESS=Andre Adeniyi Jones Estate Market, Ikeja, Lagos State`
+- `NEXT_PUBLIC_SELLER_HOURS=9am to 6pm, Monday to Saturday at physical store`
+
+The phone/WhatsApp buttons and seller-info block are now visible locally. Rebuild + local smoke
+test passed with the new values. Owner confirmed all four variables were added to Vercel on
+24 Nov 2026; the GitHub integration auto-deploys after this push (Vercel CLI has no credentials
+on this machine, so no `vercel --prod` was attempted).

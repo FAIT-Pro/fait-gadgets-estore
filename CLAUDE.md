@@ -3,7 +3,7 @@
 This file tells Claude Code everything it needs to know about this project.
 Read this fully before making any changes.
 
-**Last verified:** 2026-06-26 (Session 9 — Meta WhatsApp Cloud API fully removed, mobile like/save bug fixed)
+**Last verified:** 2026-11-24 (360° audit fixes + Session 12 storefront hero/contact actions; Telegram webhook authenticated, exposed secrets redacted, Vercel env vars confirmed; see `SECRET_ROTATION_CHECKLIST.md`)
 
 ---
 
@@ -84,8 +84,10 @@ estore/
 │   │                          Also exports Product, Interaction TypeScript types
 │   ├── gemini.ts           ← Calls Gemini 2.5 Flash via REST API (NOT the SDK)
 │   │                          extractProductInfo() returns: { name, description, price, currency, category }
-│   │                          interpretEditCommand() (Session 8) returns: { field, value } from free-text edits
+│   │                          interpretEditCommands() returns: { edits: [...] } from free-text edits (multiple fields, reply-aware since Session 10)
 │   ├── cloudinary.ts       ← Uploads image URL or base64 dataUri → returns CDN URL
+│   │                          Telegram assets grouped into estore-products/<product-name>/
+│   │                          Exposes productAssetFolder(), telegramAssetName(), renameProductImage()
 │   ├── telegram.ts         ← Telegram bot helpers + ALL seller notifications (added Session 7,
 │   │                          absorbed Meta's notification role in Session 9 when lib/notify.ts
 │   │                          was deleted entirely)
@@ -147,7 +149,7 @@ estore/
 │       │                      debounces 2s, merges into ONE product once the album finishes arriving
 │       │                      Always returns HTTP 200, never throws back to the platform
 │       │                      export const maxDuration = 60 (debounce wait + Gemini exceeds the 10s default)
-│       │                      Other text → interpretEditCommand() (Session 8) edits the most recent product
+│       │                      Other text → interpretEditCommands() edits the replied-to product (or latest if no reply)
 │       ├── track/
 │       │   └── route.ts    ← POST: logs visitor interactions (view/like/save/enquiry)
 │       │                      Notifies seller via Telegram for like, save, enquiry (not views) — Session 9
@@ -178,9 +180,12 @@ estore/
     │                          Like/save buttons are SIBLINGS of the product <Link>, not nested
     │                          inside it (Session 9 fix — see Rule 16: nested <button> inside <a>
     │                          made taps unreliable on mobile)
-    ├── EnquireButton.tsx   ← Two-button row: "Request to Buy" (opens modal) + chat icon (Tawk.to)
-    ├── BuyRequestModal.tsx ← Bottom-sheet modal: buyer name + phone + optional message
+    ├── HeroSlider.tsx      ← Homepage slider: 3 most recently updated products, swipe/dots/arrows
+    ├── EnquireButton.tsx   ← Request to Buy + callback + Tawk chat + phone reveal + WhatsApp link
+    ├── BuyRequestModal.tsx ← Bottom-sheet modal: name, phone, WhatsApp/Call preference, message
     │                          Submits to /api/enquire → success confirmation shown
+    ├── ShareButtons.tsx    ← Facebook / X / copy link / native share buttons
+    ├── PolicyModal.tsx     ← Reusable dialog for Delivery Arrangement and Return Policy
     ├── SearchBar.tsx       ← Live search client component: 300ms debounce + useTransition spinner
     │                          Wrapped in <Suspense> in page.tsx (required for useSearchParams)
     ├── ImageGallery.tsx    ← Multi-photo viewer: large main image + thumbnail strip + SOLD overlay
@@ -274,11 +279,11 @@ SUPABASE_SERVICE_ROLE_KEY=...                                       ← SET
 
 # ── CLOUDINARY ────────────────────────────────────────
 CLOUDINARY_CLOUD_NAME=fait                                          ← SET (cloud name, not API key name)
-CLOUDINARY_API_KEY=724116592859517                                  ← SET
+CLOUDINARY_API_KEY=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]                                  ← SET
 CLOUDINARY_API_SECRET=...                                           ← SET
 
 # ── GOOGLE GEMINI AI ──────────────────────────────────
-GEMINI_API_KEY=AQ.Ab8RN6J...                                        ← SET (new format, valid)
+GEMINI_API_KEY=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]                                        ← SET (new format, valid)
 
 # ── STORE SETTINGS ────────────────────────────────────
 NEXT_PUBLIC_STORE_NAME=FAIT Gadgets                                 ← SET
@@ -288,12 +293,32 @@ NEXT_PUBLIC_SITE_URL=https://fait-gadgets-estore.vercel.app        ← SET
 NEXT_PUBLIC_TAWKTO_ID=6a2a9f25f.../1jqr7rbgv                       ← SET ✅
 
 # ── ADMIN DASHBOARD ───────────────────────────────────
-ADMIN_PASSWORD="19@George80"                                        ← SET ✅ (changed Session 8 — quote unquoted special chars, see Rule 14)
+ADMIN_PASSWORD="[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]"                                        ← SET ✅ (changed Session 8 — quote unquoted special chars, see Rule 14)
 
 # ── TELEGRAM BOT (listing + ALL seller notifications) ─
-TELEGRAM_BOT_TOKEN=8831963972:AAFopI9...                            ← SET ✅
-TELEGRAM_CHAT_ID=1478850085                                         ← SET ✅
+TELEGRAM_BOT_TOKEN=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]                            ← SET ✅
+TELEGRAM_CHAT_ID=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]                                         ← SET ✅
+TELEGRAM_WEBHOOK_SECRET=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]                                  ← SET locally ✅ / VERCEL ✅
 ```
+
+### Optional contact / storefront variables (Session 12)
+These are not secrets and are safe to expose with `NEXT_PUBLIC_`. Leave any of them blank to hide
+the corresponding UI. Add them to both `.env.local` and the Vercel dashboard, then redeploy.
+```
+NEXT_PUBLIC_SELLER_PHONE=+2348061563148      ← SET locally ✅ / VERCEL ✅ — tel: + phone reveal
+NEXT_PUBLIC_SELLER_WHATSAPP=2348061563148    ← SET locally ✅ / VERCEL ✅ — digits only, wa.me link
+NEXT_PUBLIC_SELLER_ADDRESS=Andre Adeniyi Jones Estate Market, Ikeja, Lagos State ← SET locally ✅ / VERCEL ✅
+NEXT_PUBLIC_SELLER_HOURS=9am to 6pm, Monday to Saturday at physical store ← SET locally ✅ / VERCEL ✅
+```
+These replace the old removed `SELLER_PHONE` variable (which Meta-only code used). The WhatsApp
+button is a normal `wa.me` web link — no Meta verification or WhatsApp Cloud API is involved.
+The address/hours came from the owner on 24 Nov 2026; the owner confirmed all four variables were
+added to Vercel the same day. A redeploy follows this push via the GitHub integration.
+
+**Security (Session 10 audit):** the webhook is registered with this secret as Telegram's
+`secret_token`, so only Telegram can drive listings/edits, and only `TELEGRAM_CHAT_ID` may
+control the bot. All values previously committed to git are compromised — see
+`SECRET_ROTATION_CHECKLIST.md`.
 
 ### Variables that are NO LONGER needed (do not re-add)
 ```
@@ -402,7 +427,7 @@ Fix, in `app/api/telegram/route.ts`'s `handleAlbumPhoto()`:
 1. Each incoming album photo is uploaded to Cloudinary immediately (no Gemini yet), then
    appended to a `telegram_media_groups` row via the atomic `append_telegram_media_group()`
    Postgres function (avoids a read-then-write race when photos arrive milliseconds apart).
-2. The handler then waits `MEDIA_GROUP_WAIT_MS` (2000ms) and tries to atomically flip
+2. The handler then waits `MEDIA_GROUP_WAIT_MS` (8000ms) and tries to atomically flip
    `processed = false → true` **only if** the row's `update_count` still matches the value
    it got right after appending. If a later photo bumped the count during the wait, the
    claim's `WHERE` clause matches nothing and this invocation just exits — whichever photo
@@ -424,11 +449,11 @@ multi-photo Telegram uploads will error (single-photo uploads are unaffected).
 
 ### 14. Quote env var values that contain `#` in `.env.local` (Session 8)
 Next.js's env loader (`@next/env`, dotenv-compatible) treats an unquoted `#` as the start of
-a comment — `ADMIN_PASSWORD=FaitGadg3ts#2026` was silently loaded locally as just
+a comment — `ADMIN_PASSWORD=[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]` was silently loaded locally as just
 `FaitGadg3ts`, dropping `#2026`. This caused admin login to fail locally with the password
 documented as correct, while production worked fine (Vercel's dashboard stores env vars as
 raw strings with no comment-stripping). Fix: wrap any value containing `#` (or other special
-characters) in quotes — `ADMIN_PASSWORD="FaitGadg3ts#2026"`. Verify with:
+characters) in quotes — `ADMIN_PASSWORD="[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]"`. Verify with:
 ```bash
 node -e "const {loadEnvConfig}=require('@next/env'); loadEnvConfig(process.cwd(), true); console.log(JSON.stringify(process.env.ADMIN_PASSWORD))"
 ```
@@ -441,16 +466,19 @@ wasn't exactly `SOLD` was *also* silently dropped — no error, no reply, nothin
 reported as a real bug: a seller forgot a price, edited the Telegram caption (no effect),
 then sent a new message asking for the price to be added (also no effect, no feedback).
 
-Fix: any text that isn't `SOLD` is now sent to `interpretEditCommand()` (`lib/gemini.ts`)
-along with the most-recently-listed product's current details. Gemini decides whether it's
-an instruction to change `price`, `name`, `description`, or `category`, and returns
-`{ field, value }` (or `{ field: null, value: null }` if it's not an edit instruction at all
-— a greeting, a question, etc). The route applies the update via `supabaseAdmin`, calls
-`revalidatePath('/')` + `revalidatePath('/product/[id]')`, and **always replies** — either a
-confirmation (`✅ Updated price for "..." → ₦165,000`) or a "didn't understand" message with
-examples. Never silent, unlike the old behavior.
-Targets the most recent product by `created_at` regardless of status (not just `available`,
-unlike the `SOLD` command) so a price can still be fixed even if it was mistakenly marked sold.
+Fix: any text that isn't `SOLD` is now sent to `interpretEditCommands()` (`lib/gemini.ts`)
+along with the target product's current details. Gemini returns `{ edits: [...] }` with **every**
+field the seller asked to change (`price`, `name`, `description`, `category`); an empty list means
+it wasn't an edit instruction (a greeting, a question, etc). The route applies all edits in one
+`supabaseAdmin.update()`, calls `revalidatePath('/')` + `revalidatePath('/product/[id]')`, and
+**always replies** with a confirmation listing every change, or "didn't understand" with examples.
+
+**Targeting (Session 10):** if the text is a Telegram **reply** to a product photo, the route
+resolves the exact product via the replied message's `wa_message_id` (`tg_<id>` or
+`tg_group_<id>`), polling up to 20s for an album still being finalized. A plain text message
+with no reply still targets the most recent product by `created_at` regardless of status (not just
+`available`, unlike `SOLD`). Editing a Telegram caption is still ignored — Telegram delivers that
+as `edited_message`; reply with a **new** text message instead.
 
 ### 16. Never nest a `<button>` inside a `<Link>`/`<a>` (Session 9)
 `components/ProductCard.tsx`'s like/save buttons used to be DOM descendants of the product's
@@ -473,6 +501,32 @@ real touch gesture (Playwright `.tap()` with `hasTouch`/`isMobile` context optio
 `.click()`) — `.click()` alone would not have caught this bug, since mouse clicks don't
 exhibit the same nested-anchor quirks as touch taps.
 
+### 17. Telegram webhook must be authenticated (Session 10 audit)
+`app/api/telegram/route.ts` previously trusted every POST that reached it. Two guards were added:
+
+1. **Secret token** — `setWebhook` is registered with a `secret_token`; Telegram sends it back in
+   the `X-Telegram-Bot-Api-Secret-Token` header. The route compares it to
+   `TELEGRAM_WEBHOOK_SECRET` and rejects missing/mismatched headers *before parsing or writing
+   anything*. Unauthorized requests still return HTTP 200 (Rule 5) so Telegram never retries.
+2. **Seller-chat allowlist** — messages whose `message.chat.id` does not equal
+   `TELEGRAM_CHAT_ID` are ignored. Finding the bot in Telegram must not let a stranger mark
+   products sold or edit listings.
+
+`TELEGRAM_WEBHOOK_SECRET` is set in **both** `.env.local` and the Vercel dashboard (owner confirmed
+24 Nov 2026). Keep the two values identical with the `secret_token` used in `setWebhook`; otherwise
+the deployed route rejects every Telegram delivery.
+
+### 18. Cloudinary assets from Telegram are organised by product name (Session 10)
+`lib/cloudinary.ts` exposes `productAssetFolder()` / `telegramAssetName()`:
+- Single photo: Gemini runs on the downloaded bytes **before** the Cloudinary upload, so the
+  image is uploaded directly into `estore-products/<slugified-product-name>/` with a public ID
+  like `<slug>-<6-char-hash>-1.jpg`.
+- Albums: photos are uploaded to `estore-products/_incoming/` during the debounce, then
+  `renameProductImage()` moves them into the final product folder once Gemini supplies the name.
+  Late photos are renamed too.
+- Admin uploads are unchanged (`estore-products/`). The short hash keeps re-listings of the same
+  product name from overwriting each other.
+
 ---
 
 ## Known Bugs
@@ -491,8 +545,16 @@ All previously known bugs have been fixed:
 - ✅ **BUG 5 FIXED (Session 9):** Like/save buttons on `ProductCard` didn't work on mobile — a
   `<button>` was nested inside the product's `<Link>`, which mobile browsers handle unreliably.
   Fixed by making the buttons siblings of the link — see Rule 16.
+- ✅ **BUG 6 FIXED (Session 10 audit):** Telegram webhook had become unregistered in production
+  (9 queued updates, no deliveries). Re-registered with `secret_token`; queued seller album was
+  replayed into one product before clearing the queue — see Rule 17.
+- ✅ **BUG 7 FIXED (Session 10 audit):** Webhook accepted unauthenticated requests from any chat.
+  Secret-token check + seller-chat allowlist added — see Rule 17.
 
-No remaining known bugs.
+### Open issues from the Session 10 audit (not yet fixed)
+- Live secrets are still present in **git history** of this public repo. Redacted from current
+  docs, but rotation is mandatory — see `SECRET_ROTATION_CHECKLIST.md`.
+- `TELEGRAM_WEBHOOK_SECRET` was added to Vercel by the owner on 24 Nov 2026 before this push.
 
 ---
 
@@ -537,9 +599,11 @@ Project → Settings → Environment Variables
 **If `vercel --prod` fails due to wrong account** (see Rule 11): just `git push` to `main` —
 Vercel's GitHub integration auto-deploys, no CLI auth needed.
 
-Telegram webhook is registered with:
-`https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://fait-gadgets-estore.vercel.app/api/telegram`
-(already done as of Session 7 — only re-run this if the bot token changes or the webhook needs resetting)
+Telegram webhook is registered with (Session 10 audit):
+`https://api.telegram.org/bot{TOKEN}/setWebhook?url=https://fait-gadgets-estore.vercel.app/api/telegram&secret_token={TELEGRAM_WEBHOOK_SECRET}`
+Re-run this if the bot token changes or the webhook needs resetting. Check registration with
+`getWebhookInfo` — as of 23 Nov 2026 the URL is set and `pending_update_count` is 0.
+**Never deploy the webhook-auth code without first adding `TELEGRAM_WEBHOOK_SECRET` to Vercel.**
 
 ---
 
@@ -595,7 +659,7 @@ Telegram webhook is registered with:
 - [x] PWA manifest + SVG icon + mobile viewport meta tags
 - [x] BUG 1 fixed: sold products show SOLD overlay
 - [x] BUG 2 fixed: webhook rejects forged requests (HMAC-SHA256, live tested)
-- [x] ADMIN_PASSWORD strengthened to `FaitGadg3ts#2026` (Session 5), changed to `19@George80` (Session 8)
+- [x] ADMIN_PASSWORD strengthened to `[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]` (Session 5), changed to `[REDACTED — rotate; see SECRET_ROTATION_CHECKLIST.md]` (Session 8)
 - [x] Tawk.to live chat widget active on storefront
 - [x] All code committed, snapshot branch `snapshot-v5-session5-complete` created
 - [x] GitHub auth fix: `gh auth switch --user FAIT-Pro` (must be repeated each terminal session)
@@ -623,6 +687,16 @@ Telegram webhook is registered with:
   panel, persisted in `localStorage`, applied before first paint to avoid a flash
 - [x] **BUG 5 fixed** (Session 9): like/save buttons on `ProductCard` are now siblings of the
   product `<Link>` instead of nested inside it, fixing unreliable taps on mobile
+- [x] **Reply-aware Telegram edits + product-name Cloudinary folders** (Session 11) — see Rules 15/18
+- [x] **Homepage hero slider** (Session 12) — 3 most recently updated available products, with
+  swipe/dots/arrows and a compact grid of the remaining products underneath
+- [x] **Product contact actions** (Session 12) — reveal phone number, `wa.me` chat link, request
+  callback, Tawk chat, and share buttons. Phone/WhatsApp buttons stay hidden until their env vars
+  are filled in.
+- [x] **Similar products + policy dialogs** (Session 12) — category-based recommendations and
+  Delivery Arrangement / Return Policy modal links on every product page
+- [x] **Request to Buy contact preference** (Session 12) — WhatsApp or Call radio buttons; the
+  choice is stored with the enquiry and shown in the seller's Telegram notification
 
 ---
 
@@ -662,9 +736,11 @@ git checkout main
 
 - Store name: FAIT Gadgets
 - Seller is based in Nigeria — default currency is NGN (₦)
-- Seller's notification channel is now Telegram only (Session 9) — `SELLER_PHONE` /
-  Meta WhatsApp env vars removed, no longer applicable
+- Seller's internal notification channel is Telegram only (Session 9) — the old `SELLER_PHONE` /
+  Meta WhatsApp env vars were removed, no longer applicable
+- A normal `wa.me` click-to-chat link is available on product pages when
+  `NEXT_PUBLIC_SELLER_WHATSAPP` is set. This is just a web link, not the Meta WhatsApp API.
 - Business was originally WhatsApp-first (seller posts to WhatsApp Status daily), but the
-  storefront's listing and notification pipeline no longer touches WhatsApp at all
+  storefront's listing and notification pipeline no longer touches the WhatsApp Business API
 - The seller is a beginner with coding — keep changes simple and well-commented
 - Every file in this project has inline comments explaining what each section does

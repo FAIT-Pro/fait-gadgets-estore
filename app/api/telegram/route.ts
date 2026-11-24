@@ -6,6 +6,11 @@
 // verification step like Meta requires — registering the webhook URL with
 // Telegram's setWebhook endpoint is enough.
 //
+// Security: setWebhook is registered with a secret_token. Telegram includes it
+// in the X-Telegram-Bot-Api-Secret-Token header on every delivery, and we reject
+// anything else. We also ignore messages from any chat other than the seller's
+// TELEGRAM_CHAT_ID, so finding the bot cannot be used to alter the store.
+//
 // Full product-listing flow:
 //   1. Seller sends a photo to the bot (with optional caption)
 //   2. Telegram POSTs the update here with a file_id (not a direct URL)
@@ -27,8 +32,14 @@
 
 import { NextRequest, NextResponse }            from 'next/server'
 import { revalidatePath }                       from 'next/cache'
-import { extractProductInfo, interpretEditCommand } from '@/lib/gemini'
-import { uploadProductImage }                   from '@/lib/cloudinary'
+import { extractProductInfo, interpretEditCommands } from '@/lib/gemini'
+import {
+  uploadProductImage,
+  renameProductImage,
+  productAssetFolder,
+  telegramAssetName,
+  telegramAssetBase,
+}                                               from '@/lib/cloudinary'
 import { supabaseAdmin }                        from '@/lib/supabase'
 import { sendTelegramMessage, downloadTelegramFile, productListedMessage } from '@/lib/telegram'
 
@@ -40,8 +51,27 @@ export const maxDuration = 60
 // last one to arrive. Telegram typically delivers an entire album within ~1s.
 const MEDIA_GROUP_WAIT_MS = 8000
 
+// Set with setWebhook(..., secret_token). Requests without a matching header
+// are rejected before any product data is touched.
+const WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET
+const SELLER_CHAT_ID = process.env.TELEGRAM_CHAT_ID
+
+function hasValidSecret(request: NextRequest): boolean {
+  if (!WEBHOOK_SECRET) {
+    console.error('[telegram] TELEGRAM_WEBHOOK_SECRET is not set — refusing all webhook requests')
+    return false
+  }
+  return request.headers.get('x-telegram-bot-api-secret-token') === WEBHOOK_SECRET
+}
+
 export async function POST(request: NextRequest) {
   try {
+    if (!hasValidSecret(request)) {
+      console.warn('[telegram] rejected webhook request with missing or invalid secret token')
+      // Still HTTP 200: never give Telegram a reason to retry a forged request.
+      return NextResponse.json({ ok: false })
+    }
+
     const update = await request.json()
     const message = update.message
 
@@ -52,6 +82,17 @@ export async function POST(request: NextRequest) {
 
     const chatId    = String(message.chat?.id)
     const messageId = message.message_id ? `tg_${message.message_id}` : null
+
+    // The bot is a control channel for this one store: only the seller's chat
+    // may list, edit or mark products sold. Anyone else who finds the bot is ignored.
+    if (!SELLER_CHAT_ID) {
+      console.error('[telegram] TELEGRAM_CHAT_ID is not set — refusing to process messages')
+      return NextResponse.json({ ok: false })
+    }
+    if (chatId !== SELLER_CHAT_ID) {
+      console.warn(`[telegram] ignored message from non-seller chat ${chatId}`)
+      return NextResponse.json({ ok: true })
+    }
 
     // ── Handle text messages: "SOLD" command, or a free-text edit instruction ──
     if (typeof message.text === 'string') {
@@ -82,58 +123,57 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true })
       }
 
-      // Anything else: try to interpret it as an edit instruction for the
-      // most recently listed product (e.g. "price 165000", "change the name
-      // to..."). Note: editing a Telegram message's caption does NOT trigger
-      // this webhook at all — Telegram sends that as update.edited_message,
-      // which is ignored above — so a new text message is the only way to
-      // correct a listing after the fact.
-      const { data: latestProduct } = await supabaseAdmin
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
+      // Anything else: try to interpret it as an edit instruction. Replying
+      // directly to a product's photo targets that exact product; a plain text
+      // message still targets the most recently listed one.
+      const target  = await findEditTarget(message)
+      const product = target.product
 
-      if (!latestProduct) {
+      if (!product) {
         await sendTelegramMessage(chatId, "You don't have any products listed yet — send a photo to list one.")
         return NextResponse.json({ ok: true })
       }
 
-      const command = await interpretEditCommand(text, {
-        name:     latestProduct.name,
-        price:    latestProduct.price,
-        currency: latestProduct.currency,
-        category: latestProduct.category,
+      const edits = await interpretEditCommands(text, {
+        name:     product.name,
+        price:    product.price,
+        currency: product.currency,
+        category: product.category,
       })
 
-      if (!command.field) {
+      const fields = Object.keys(edits) as Array<keyof typeof edits>
+      if (fields.length === 0) {
         await sendTelegramMessage(
           chatId,
-          `Sorry, I didn't understand that as an edit. Try something like "price 165000" ` +
-          `or "change the name to...". This applies to your most recent listing: "${latestProduct.name}".`
+          `Sorry, I didn't understand that as an edit. Try "price 165000", "category Electronics", ` +
+          `or reply directly to the product's photo and add the missing details.`
         )
         return NextResponse.json({ ok: true })
       }
 
       const { error: editError } = await supabaseAdmin
         .from('products')
-        .update({ [command.field]: command.value })
-        .eq('id', latestProduct.id)
+        .update(edits)
+        .eq('id', product.id)
 
       if (editError) throw editError
 
       revalidatePath('/')
-      revalidatePath(`/product/${latestProduct.id}`)
+      revalidatePath(`/product/${product.id}`)
 
-      const symbol       = latestProduct.currency === 'USD' ? '$' : '₦'
-      const displayValue = command.field === 'price'
-        ? `${symbol}${Number(command.value).toLocaleString()}`
-        : command.value
+      const symbol  = product.currency === 'USD' ? '$' : '₦'
+      const changes = fields.map((field) => {
+        const value   = edits[field]
+        const display = field === 'price' ? `${symbol}${Number(value).toLocaleString()}` : value
+        return `${field} → ${display}`
+      })
 
-      await sendTelegramMessage(chatId, `✅ Updated ${command.field} for "${latestProduct.name}" → ${displayValue}`)
+      const prefix = target.viaReply
+        ? `✅ Updated "${product.name}": `
+        : `✅ Updated your most recent listing "${product.name}": `
+      await sendTelegramMessage(chatId, prefix + changes.join(', '))
 
-      return NextResponse.json({ ok: true, updated: command.field })
+      return NextResponse.json({ ok: true, updated: fields })
     }
 
     // ── Handle photo messages → list as product ───────────────────────────────
@@ -168,11 +208,14 @@ export async function POST(request: NextRequest) {
     // ── Step 1: Download the photo bytes ──────────────────────────────────────
     const dataUri = await downloadTelegramFile(fileId)
 
-    // ── Step 2: Upload to Cloudinary ───────────────────────────────────────────
-    const optimizedImageUrl = await uploadProductImage(dataUri)
-
-    // ── Step 3: Extract product details with Gemini ───────────────────────────
+    // ── Step 2: Extract product details with Gemini ───────────────────────────
     const productInfo = await extractProductInfo(dataUri, caption)
+
+    // ── Step 3: Upload to a Cloudinary folder named after the product ─────────
+    const optimizedImageUrl = await uploadProductImage(dataUri, {
+      folder:   productAssetFolder(productInfo.name),
+      publicId: telegramAssetName(productInfo.name, messageId || fileId, 1),
+    })
 
     // ── Step 4: Save to Supabase ───────────────────────────────────────────────
     const { data: product, error } = await supabaseAdmin
@@ -184,6 +227,7 @@ export async function POST(request: NextRequest) {
         currency:      productInfo.currency,
         category:      productInfo.category,
         image_url:     optimizedImageUrl,
+        image_urls:    [optimizedImageUrl],
         status:        'available',
         wa_message_id: messageId,
       })
@@ -208,6 +252,47 @@ export async function POST(request: NextRequest) {
   }
 }
 
+type EditTargetProduct = {
+  id: string
+  name: string
+  price: number | null
+  currency: string
+  category: string
+}
+
+async function findEditTarget(message: any): Promise<{ product: EditTargetProduct | null; viaReply: boolean }> {
+  const reply = message.reply_to_message
+  let key: string | null = null
+
+  if (reply?.photo?.length) {
+    if (reply.media_group_id) key = `tg_group_${reply.media_group_id}`
+    else if (reply.message_id) key = `tg_${reply.message_id}`
+  }
+
+  if (key) {
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const { data } = await supabaseAdmin
+        .from('products')
+        .select('id, name, price, currency, category')
+        .eq('wa_message_id', key)
+        .maybeSingle()
+
+      if (data) return { product: data as EditTargetProduct, viaReply: true }
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    }
+    console.warn(`[telegram] no product found for replied message ${key}; falling back to latest listing`)
+  }
+
+  const { data: latest } = await supabaseAdmin
+    .from('products')
+    .select('id, name, price, currency, category')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  return { product: latest as EditTargetProduct | null, viaReply: false }
+}
+
 // ── Multi-photo album handling ────────────────────────────────────────────────
 // Telegram delivers each photo in an album as its own webhook call. This
 // function stages the photo in telegram_media_groups, waits to see if it was
@@ -230,7 +315,7 @@ async function handleAlbumPhoto({
   // Download + upload this photo to Cloudinary now (cheap, no Gemini yet —
   // only the album's first photo gets analyzed once the album is finalized).
   const dataUri  = await downloadTelegramFile(fileId)
-  const imageUrl = await uploadProductImage(dataUri)
+  const imageUrl = await uploadProductImage(dataUri, { folder: 'estore-products/_incoming' })
 
   // If the album was already finalized into a product (this photo arrived
   // very late), just attach it to that product instead of dropping it.
@@ -287,6 +372,22 @@ async function handleAlbumPhoto({
   // exactly like the Admin Upload multi-image flow.
   const productInfo = await extractProductInfo(allImageUrls[0], groupCaption)
 
+  const folder        = productAssetFolder(productInfo.name)
+  const organizedUrls = await Promise.all(
+    allImageUrls.map(async (url, index) => {
+      try {
+        return await renameProductImage(
+          url,
+          folder,
+          telegramAssetName(productInfo.name, groupKey, index + 1)
+        )
+      } catch (err) {
+        console.error('[telegram] could not move Cloudinary asset into product folder:', err)
+        return url
+      }
+    })
+  )
+
   const { data: product, error } = await supabaseAdmin
     .from('products')
     .insert({
@@ -295,8 +396,8 @@ async function handleAlbumPhoto({
       price:         productInfo.price,
       currency:      productInfo.currency,
       category:      productInfo.category,
-      image_url:     allImageUrls[0],
-      image_urls:    allImageUrls,
+      image_url:     organizedUrls[0],
+      image_urls:    organizedUrls,
       status:        'available',
       wa_message_id: groupKey,
     })
@@ -321,13 +422,13 @@ async function handleAlbumPhoto({
 // The product may still be mid-creation (Gemini + Supabase insert), so we
 // poll briefly before giving up — avoids silently losing late-arriving photos.
 async function attachLatePhotoToProduct(groupKey: string, imageUrl: string) {
-  let product = null as { id: string; image_urls: string[] } | null
+  let product = null as { id: string; name: string; image_urls: string[] } | null
 
   // Poll for up to 15s — product creation (Gemini + insert) typically takes 2-5s
   for (let attempt = 0; attempt < 15; attempt++) {
     const { data } = await supabaseAdmin
       .from('products')
-      .select('id, image_urls')
+      .select('id, name, image_urls')
       .eq('wa_message_id', groupKey)
       .maybeSingle()
 
@@ -337,13 +438,23 @@ async function attachLatePhotoToProduct(groupKey: string, imageUrl: string) {
 
   if (!product) return
 
-  // Avoid adding duplicates (the first photo is already in image_urls)
   const existing = new Set(product.image_urls ?? [])
   if (existing.has(imageUrl)) return
 
+  let organizedUrl = imageUrl
+  try {
+    organizedUrl = await renameProductImage(
+      imageUrl,
+      productAssetFolder(product.name),
+      telegramAssetName(product.name, groupKey, (product.image_urls ?? []).length + 1)
+    )
+  } catch (err) {
+    console.error('[telegram] could not move late Cloudinary asset into product folder:', err)
+  }
+
   await supabaseAdmin
     .from('products')
-    .update({ image_urls: [...(product.image_urls ?? []), imageUrl] })
+    .update({ image_urls: [...(product.image_urls ?? []), organizedUrl] })
     .eq('id', product.id)
 
   revalidatePath(`/product/${product.id}`)
