@@ -4958,9 +4958,24 @@ curl "https://api.telegram.org/bot&lt;TOKEN&gt;/setWebhook?url=https://fait-gadg
   </ul>
 </div>
 
+<div style="margin-top:24px; padding:16px; background:#0a2510; border-left:4px solid #25D366; border-radius:6px; color:#b3ffcc;">
+  <p><strong>Session 13 — Telegram reply-photo merge + Cloudinary tags (25 Nov 2026)</strong></p>
+  <p><em>Owner:</em> "If I reply to a message that does not contain the complete parameter, the two messages should be treated as one product. I just did one and it was treated as two separate uploads — one with the price and one saying call for price. Also Cloudinary image grouping and tagging is not effected yet."</p>
+  <p><em>Diagnosis:</em> production data showed the incomplete album product <code>76ff9d40…</code> (price null, 3 photos, folder <code>estore-products/shure-professional-studio-microphone</code>) and a second single-photo product <code>dbadfda2…</code> (price 252000, 1 photo, folder <code>estore-products/shure-sm7b-legendary-vocal-microphone</code>). The reply arrived as a photo update, so the old webhook took the normal new-listing path. The new folders prove grouping works for new uploads; the 44 older root-level assets were never migrated. <code>getWebhookInfo</code>: URL set, pending 0.</p>
+  <ul>
+    <li><code>app/api/telegram/route.ts</code>: photo replies are detected before new-listing/album handling. <code>handleReplyPhoto()</code> resolves the original product via the replied message's <code>wa_message_id</code> (20s polling for unfinished albums), uploads the new photo into that product's Cloudinary folder, appends the URL, applies caption edits, revalidates, and confirms with "Merged your reply into …".</li>
+    <li>If the original product cannot be found, the bot replies and creates nothing — no duplicate listing.</li>
+    <li>Added <code>appendProductImage()</code>: uses the new <code>append_product_image()</code> RPC when installed, with a short read/update fallback if the RPC is missing, so deployment is safe before migration.</li>
+    <li><code>lib/gemini.ts</code>: bare price replies such as <code>250000</code>, <code>₦250,000</code> and <code>250k</code> are parsed as price edits; <code>250k</code> becomes <code>250000</code>.</li>
+    <li><code>lib/cloudinary.ts</code>: uploads and renames accept tags; new <code>telegramAssetTags()</code> returns <code>['telegram', &lt;product-slug&gt;, 'store-listing']</code>. Album staging also gets <code>album-pending</code> and <code>group-&lt;media_group_id&gt;</code>.</li>
+    <li><code>schema.sql</code>: added <code>append_product_image(p_product_id uuid, p_image_url text)</code> for race-safe concurrent reply photos.</li>
+    <li>Verification: <code>npm run build</code> compiled successfully, 16 routes. No live Telegram message was sent during implementation to avoid creating another real product. Owner should send one test reply after deployment. Run the updated <code>schema.sql</code> in Supabase SQL Editor.</li>
+  </ul>
+</div>
+
 <hr />
 <div style="color:#666; font-size:0.78rem; text-align:center; padding-top:16px; border-top:1px solid #222; margin-top:24px;">
-  Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 24 Nov 2026<br/>
+  Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 25 Nov 2026<br/>
   Felix Okon &amp; Claude Sonnet 4.6 — WEBSITE_AI_Generated_Xai/WhatsApp-estore<br/>
   <em>This file is the primary tutorial record of the project. Update verbatim every session alongside CLAUDE.md and SESSION_LOG.md.</em>
 </div>

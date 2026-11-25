@@ -33,6 +33,10 @@ export function productAssetFolder(name: string): string {
   return `estore-products/${productAssetSlug(name)}`
 }
 
+export function telegramAssetTags(name: string): string[] {
+  return ['telegram', productAssetSlug(name), 'store-listing']
+}
+
 function assetBaseName(name: string, key: string): string {
   const hash = createHash('sha1').update(key).digest('hex').slice(0, 6)
   return `${productAssetSlug(name)}-${hash}`
@@ -50,7 +54,7 @@ function assetBaseName(name: string, key: string): string {
  */
 export async function uploadProductImage(
   input: string,
-  options?: { folder?: string; publicId?: string }
+  options?: { folder?: string; publicId?: string; tags?: string[] }
 ): Promise<string> {
   let dataUri: string
 
@@ -69,6 +73,7 @@ export async function uploadProductImage(
   const result = await cloudinary.uploader.upload(dataUri, {
     folder: options?.folder ?? 'estore-products',
     ...(options?.publicId ? { public_id: options.publicId } : {}),
+    ...(options?.tags?.length ? { tags: options.tags } : {}),
     transformation: [
       { width: 800, height: 800, crop: 'limit' },
       { quality: 'auto' },
@@ -79,7 +84,12 @@ export async function uploadProductImage(
   return result.secure_url
 }
 
-export async function renameProductImage(url: string, folder: string, publicId: string): Promise<string> {
+export async function renameProductImage(
+  url: string,
+  folder: string,
+  publicId: string,
+  tags?: string[]
+): Promise<string> {
   const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[a-z0-9]+)?$/i)
   if (!match) return url
 
@@ -87,6 +97,16 @@ export async function renameProductImage(url: string, folder: string, publicId: 
     overwrite: true,
     invalidate: true,
   })
+
+  if (tags?.length && result?.public_id) {
+    for (const tag of tags) {
+      try {
+        await cloudinary.uploader.add_tag(tag, [result.public_id])
+      } catch (err) {
+        console.error('[cloudinary] could not add tag to renamed asset:', err)
+      }
+    }
+  }
 
   return result?.secure_url || url
 }

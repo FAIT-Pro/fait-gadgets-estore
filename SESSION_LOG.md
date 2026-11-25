@@ -1247,3 +1247,59 @@ The phone/WhatsApp buttons and seller-info block are now visible locally. Rebuil
 test passed with the new values. Owner confirmed all four variables were added to Vercel on
 24 Nov 2026; the GitHub integration auto-deploys after this push (Vercel CLI has no credentials
 on this machine, so no `vercel --prod` was attempted).
+
+---
+
+## Session 13 — Telegram reply-photo merge + Cloudinary tags (25 Nov 2026)
+
+### Owner report
+The owner sent a Telegram album with no price, then replied to that photo with another photo whose
+caption contained the price. The bot created TWO products: one "call for price" and one with the
+price. The owner asked that a reply to an incomplete message be treated as a continuation of the
+same listing, so the images and price merge into one product. The owner also said Cloudinary
+image grouping and tagging were not visible.
+
+### Diagnosis
+- Production data showed the two products from the test:
+  - `76ff9d40-591b-4f7e-a9dc-e05b568990ef` — "Shure Professional Studio Microphone", price `null`,
+    `wa_message_id = tg_group_14364928446871788`, 3 photos, folder
+    `estore-products/shure-professional-studio-microphone`.
+  - `dbadfda2-0434-44f1-af32-0497ccf3850e` — "Shure SM7B Legendary Vocal Microphone", price `252000`,
+    `wa_message_id = tg_109`, 1 photo, folder
+    `estore-products/shure-sm7b-legendary-vocal-microphone`.
+- Both new assets ARE in product-named folders, so grouping works for new Telegram uploads; the
+  remaining 44 older assets are still root-level `estore-products/<random>.jpg` because no
+  one-time migration has been run.
+- `getWebhookInfo` showed URL set, `pending_update_count = 0`.
+- Vercel deployment for `82de94f` succeeded; production homepage hero + product-page contact
+  checks passed.
+
+### Changes
+- `app/api/telegram/route.ts` — photo replies are now detected before the normal new-listing and
+  album paths. `handleReplyPhoto()` resolves the original product from the replied message's
+  `wa_message_id` (polling up to 20s for an unfinished album), uploads the new photo into the
+  original product's Cloudinary folder, appends the URL atomically, applies caption edits,
+  revalidates the storefront, and sends a "Merged your reply into …" confirmation. If the
+  original product cannot be found, the bot replies and creates nothing.
+- `app/api/telegram/route.ts` — added `appendProductImage()` helper. It uses the new
+  `append_product_image()` RPC when installed and falls back to a short read/update loop if the
+  RPC has not been added yet, so deployment is safe before the migration is run.
+- `lib/gemini.ts` — bare price replies such as `250000`, `₦250,000` and `250k` are now parsed as
+  price edits; `250k` is normalised to `250000`.
+- `lib/cloudinary.ts` — `uploadProductImage()` accepts `tags`; `renameProductImage()` accepts tags
+  and applies them after moving an asset. New helper `telegramAssetTags()` returns
+  `['telegram', <product-slug>, 'store-listing']`.
+- `app/api/telegram/route.ts` — single photos, album finalisation, late album photos and reply
+  photos all pass those tags. In-flight album assets also get `album-pending` and
+  `group-<media_group_id>` tags.
+- `schema.sql` — added `append_product_image(p_product_id uuid, p_image_url text)` so concurrent
+  reply photos cannot overwrite each other's `image_urls`.
+
+### Verification
+- `npm run build` → compiled successfully, 16 routes (same metadataBase / browserslist warnings).
+- No new live Telegram message was sent during implementation, to avoid creating another real
+  product or notifying the owner. Owner should send one test reply after deployment.
+
+### Required setup
+Run the updated `schema.sql` in Supabase → SQL Editor. Without it, reply photos still work via
+the fallback append but concurrent album replies can race.

@@ -38,7 +38,7 @@ import {
   renameProductImage,
   productAssetFolder,
   telegramAssetName,
-  telegramAssetBase,
+  telegramAssetTags,
 }                                               from '@/lib/cloudinary'
 import { supabaseAdmin }                        from '@/lib/supabase'
 import { sendTelegramMessage, downloadTelegramFile, productListedMessage } from '@/lib/telegram'
@@ -188,6 +188,10 @@ export async function POST(request: NextRequest) {
     const caption     = message.caption || ''
     const mediaGroupId = message.media_group_id as string | undefined
 
+    if (message.reply_to_message?.photo?.length) {
+      return await handleReplyPhoto({ message, chatId, fileId, caption, messageId })
+    }
+
     // Multi-photo album → stage this photo and merge the whole album into one
     // product once it's the last one to arrive (see handleAlbumPhoto below).
     if (mediaGroupId) {
@@ -212,10 +216,12 @@ export async function POST(request: NextRequest) {
     const productInfo = await extractProductInfo(dataUri, caption)
 
     // ── Step 3: Upload to a Cloudinary folder named after the product ─────────
-    const optimizedImageUrl = await uploadProductImage(dataUri, {
-      folder:   productAssetFolder(productInfo.name),
-      publicId: telegramAssetName(productInfo.name, messageId || fileId, 1),
-    })
+  const optimizedImageUrl = await uploadProductImage(dataUri, {
+    folder:   productAssetFolder(productInfo.name),
+    publicId: telegramAssetName(productInfo.name, messageId || fileId, 1),
+    tags:     telegramAssetTags(productInfo.name),
+  })
+
 
     // ── Step 4: Save to Supabase ───────────────────────────────────────────────
     const { data: product, error } = await supabaseAdmin
@@ -293,6 +299,143 @@ async function findEditTarget(message: any): Promise<{ product: EditTargetProduc
   return { product: latest as EditTargetProduct | null, viaReply: false }
 }
 
+async function handleReplyPhoto({
+  message,
+  chatId,
+  fileId,
+  caption,
+  messageId,
+}: {
+  message: any
+  chatId: string
+  fileId: string
+  caption: string
+  messageId: string | null
+}) {
+  const target = await findEditTarget(message)
+
+  if (!target.viaReply || !target.product) {
+    await sendTelegramMessage(
+      chatId,
+      "I couldn't find the original photo to merge this reply into. Reply directly to that photo, or send it again as a fresh upload."
+    )
+    return NextResponse.json({ ok: true, merged: false })
+  }
+
+  const { data: product } = await supabaseAdmin
+    .from('products')
+    .select('id,name,description,price,currency,category,image_url,image_urls,wa_message_id')
+    .eq('id', target.product.id)
+    .single()
+
+  if (!product) {
+    await sendTelegramMessage(chatId, "I couldn't find that product any more — please send it again as a fresh upload.")
+    return NextResponse.json({ ok: true, merged: false })
+  }
+
+  const dataUri = await downloadTelegramFile(fileId)
+  let edits: Awaited<ReturnType<typeof interpretEditCommands>> = {}
+
+  if (caption.trim()) {
+    edits = await interpretEditCommands(caption, {
+      name: product.name,
+      price: product.price,
+      currency: product.currency,
+      category: product.category,
+    })
+
+    if (Object.keys(edits).length === 0) {
+      const extracted = await extractProductInfo(dataUri, caption)
+      if (extracted.price != null) edits.price = extracted.price
+    }
+  }
+
+  const existingUrls = product.image_urls?.length
+    ? product.image_urls
+    : product.image_url
+      ? [product.image_url]
+      : []
+
+  const imageUrl = await uploadProductImage(dataUri, {
+    folder: productAssetFolder(product.name),
+    publicId: telegramAssetName(
+      product.name,
+      product.wa_message_id || messageId || fileId,
+      existingUrls.length + 1
+    ),
+    tags: telegramAssetTags(product.name),
+  })
+
+  const allUrls = await appendProductImage(product.id, imageUrl)
+
+  if (Object.keys(edits).length > 0) {
+    const { error: editError } = await supabaseAdmin
+      .from('products')
+      .update(edits)
+      .eq('id', product.id)
+    if (editError) throw editError
+  }
+
+  revalidatePath('/')
+  revalidatePath(`/product/${product.id}`)
+
+  const symbol  = product.currency === 'USD' ? '$' : '₦'
+  const changes = Object.keys(edits).map((field) => {
+    const value = edits[field as keyof typeof edits]
+    return field === 'price' ? `price → ${symbol}${Number(value).toLocaleString()}` : `${field} → ${value}`
+  })
+
+  const summary = `🔗 Merged your reply into "${product.name}" (${allUrls.length} photos).`
+  await sendTelegramMessage(chatId, changes.length ? `${summary} ${changes.join(', ')}.` : summary)
+
+  return NextResponse.json({ ok: true, merged: true, product: product.id, edits })
+}
+
+async function appendProductImage(productId: string, imageUrl: string): Promise<string[]> {
+  const { data, error } = await supabaseAdmin.rpc('append_product_image', {
+    p_product_id: productId,
+    p_image_url: imageUrl,
+  })
+
+  if (!error && Array.isArray(data)) return data as string[]
+
+  if (!error || !/append_product_image|could not find the function/i.test(error.message || '')) {
+    if (error) throw error
+  }
+
+  console.warn('[telegram] append_product_image RPC is missing; using fallback append. Run schema.sql in Supabase.')
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data: product } = await supabaseAdmin
+      .from('products')
+      .select('image_url,image_urls')
+      .eq('id', productId)
+      .single()
+
+    if (!product) throw new Error(`Product ${productId} disappeared while appending a photo`)
+
+    const urls = product.image_urls?.length
+      ? product.image_urls
+      : product.image_url
+        ? [product.image_url]
+        : []
+
+    if (urls.includes(imageUrl)) return urls
+
+    const next = [...urls, imageUrl]
+    const { error: updateError } = await supabaseAdmin
+      .from('products')
+      .update({ image_urls: next, image_url: next[0] })
+      .eq('id', productId)
+
+    if (!updateError) return next
+    if (attempt === 4) throw updateError
+    await new Promise((resolve) => setTimeout(resolve, 250))
+  }
+
+  return [imageUrl]
+}
+
 // ── Multi-photo album handling ────────────────────────────────────────────────
 // Telegram delivers each photo in an album as its own webhook call. This
 // function stages the photo in telegram_media_groups, waits to see if it was
@@ -315,7 +458,10 @@ async function handleAlbumPhoto({
   // Download + upload this photo to Cloudinary now (cheap, no Gemini yet —
   // only the album's first photo gets analyzed once the album is finalized).
   const dataUri  = await downloadTelegramFile(fileId)
-  const imageUrl = await uploadProductImage(dataUri, { folder: 'estore-products/_incoming' })
+  const imageUrl = await uploadProductImage(dataUri, {
+    folder: 'estore-products/_incoming',
+    tags: ['telegram', 'album-pending', `group-${mediaGroupId}`],
+  })
 
   // If the album was already finalized into a product (this photo arrived
   // very late), just attach it to that product instead of dropping it.
@@ -379,7 +525,8 @@ async function handleAlbumPhoto({
         return await renameProductImage(
           url,
           folder,
-          telegramAssetName(productInfo.name, groupKey, index + 1)
+          telegramAssetName(productInfo.name, groupKey, index + 1),
+          telegramAssetTags(productInfo.name)
         )
       } catch (err) {
         console.error('[telegram] could not move Cloudinary asset into product folder:', err)
@@ -446,7 +593,8 @@ async function attachLatePhotoToProduct(groupKey: string, imageUrl: string) {
     organizedUrl = await renameProductImage(
       imageUrl,
       productAssetFolder(product.name),
-      telegramAssetName(product.name, groupKey, (product.image_urls ?? []).length + 1)
+      telegramAssetName(product.name, groupKey, (product.image_urls ?? []).length + 1),
+      telegramAssetTags(product.name)
     )
   } catch (err) {
     console.error('[telegram] could not move late Cloudinary asset into product folder:', err)

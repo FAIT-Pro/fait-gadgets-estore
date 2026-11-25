@@ -3,7 +3,7 @@
 This file tells Claude Code everything it needs to know about this project.
 Read this fully before making any changes.
 
-**Last verified:** 2026-11-24 (360° audit fixes + Session 12 storefront hero/contact actions; Telegram webhook authenticated, exposed secrets redacted, Vercel env vars confirmed; see `SECRET_ROTATION_CHECKLIST.md`)
+**Last verified:** 2026-11-25 (360° audit fixes + Session 12 storefront hero/contact actions + Session 13 reply-photo merge and Cloudinary tags; Telegram webhook authenticated, exposed secrets redacted, Vercel env vars confirmed; see `SECRET_ROTATION_CHECKLIST.md`)
 
 ---
 
@@ -527,6 +527,27 @@ the deployed route rejects every Telegram delivery.
 - Admin uploads are unchanged (`estore-products/`). The short hash keeps re-listings of the same
   product name from overwriting each other.
 
+### 19. A Telegram photo reply is a continuation, not a new listing (Session 13)
+A seller sent an album with no price, then replied to that photo with another photo carrying the
+price. Telegram delivered the reply as a normal photo update, so the webhook listed a second
+product (`tg_109`) instead of completing the first (`tg_group_…`). One listing said "call for price"
+while the new one had the price.
+
+Fix, in `app/api/telegram/route.ts`: any photo message whose `reply_to_message` contains a photo is
+handled by `handleReplyPhoto()` **before** the normal new-listing or album path. It resolves the
+original product from the replied message's `wa_message_id` (polling up to 20s for an album still
+being finalized), uploads the new image into that product's existing Cloudinary folder, appends the
+URL with the atomic `append_product_image()` RPC, applies any edits found in the caption, and
+revalidates both storefront paths. If the original cannot be found, the bot says so and creates
+nothing — no duplicate listing.
+
+`lib/gemini.ts` now understands a bare price reply such as `250000`, `₦250,000` or `250k`.
+
+Cloudinary assets from Telegram are now tagged as well as grouped: `telegram`, the product slug,
+and `store-listing`; in-flight album assets also get `album-pending` and `group-<media_group_id>`.
+`append_product_image()` was added to `schema.sql` — run the full file in Supabase SQL Editor for
+race-safe album replies. The route has a fallback append if the RPC has not been installed yet.
+
 ---
 
 ## Known Bugs
@@ -550,6 +571,8 @@ All previously known bugs have been fixed:
   replayed into one product before clearing the queue — see Rule 17.
 - ✅ **BUG 7 FIXED (Session 10 audit):** Webhook accepted unauthenticated requests from any chat.
   Secret-token check + seller-chat allowlist added — see Rule 17.
+- ✅ **BUG 8 FIXED (Session 13):** Replying to an incomplete Telegram photo with another photo +
+  price created a second listing. Reply photos now merge into the original product — see Rule 19.
 
 ### Open issues from the Session 10 audit (not yet fixed)
 - Live secrets are still present in **git history** of this public repo. Redacted from current
@@ -697,6 +720,8 @@ Re-run this if the bot token changes or the webhook needs resetting. Check regis
   Delivery Arrangement / Return Policy modal links on every product page
 - [x] **Request to Buy contact preference** (Session 12) — WhatsApp or Call radio buttons; the
   choice is stored with the enquiry and shown in the seller's Telegram notification
+- [x] **BUG 8 fixed + Cloudinary tags** (Session 13) — photo replies merge into the original
+  Telegram product; Telegram assets are tagged `telegram`, product slug and `store-listing`
 
 ---
 

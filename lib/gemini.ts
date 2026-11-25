@@ -45,7 +45,8 @@ Rules:
 - Return every field the seller asked to change, not just one. For example,
   "price 165000 and category Electronics" must return two entries.
 - Fields are limited to: price, name, description, category.
-- If updating price, "value" must be a plain number with no symbols or commas (e.g. "₦165,000" → 165000).
+- If updating price, "value" must be a plain number with no symbols or commas (e.g. "₦165,000" → 165000, "250k" → 250000).
+- A message containing only a price (e.g. "250000", "₦250,000" or "250k") means update the price.
 - If updating category, "value" must be exactly one of: Fashion, Electronics, Food & Drinks, Beauty, Home & Living, Other.
 - If the message is not an instruction to change this product (a greeting, a question, unrelated text), return { "edits": [] }.
 - Never invent values the seller did not provide.
@@ -85,7 +86,9 @@ Rules:
 
       const field = item.field as EditField
       if (field === 'price') {
-        const amount = Number(String(item.value).replace(/[^0-9.]/g, ''))
+        const raw = String(item.value).trim().toLowerCase()
+        const kMatch = raw.match(/^([0-9]+(?:\.[0-9]+)?)\s*k$/)
+        const amount = kMatch ? Number(kMatch[1]) * 1000 : Number(raw.replace(/[^0-9.]/g, ''))
         if (Number.isFinite(amount) && amount >= 0) edits.price = amount
       } else if (field === 'category') {
         const match = categories.find((c) => c.toLowerCase() === String(item.value).trim().toLowerCase())

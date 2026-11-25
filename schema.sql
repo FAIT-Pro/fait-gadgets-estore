@@ -96,6 +96,26 @@ begin
 end;
 $$ language plpgsql;
 
+create or replace function append_product_image(
+  p_product_id uuid,
+  p_image_url text
+) returns text[] as $$
+declare
+  v_urls text[];
+begin
+  update products
+     set image_urls = case
+       when p_image_url = any(coalesce(image_urls, '{}')) then coalesce(image_urls, '{}')
+       else coalesce(image_urls, '{}') || p_image_url
+     end,
+         image_url  = coalesce(image_url, p_image_url)
+   where id = p_product_id
+  returning image_urls into v_urls;
+
+  return v_urls;
+end;
+$$ language plpgsql;
+
 -- ── 4. ROW LEVEL SECURITY ────────────────────────────
 -- Controls who can read/write each table
 
