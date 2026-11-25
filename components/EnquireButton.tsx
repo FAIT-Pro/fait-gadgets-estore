@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import BuyRequestModal, { type ContactPreference } from '@/components/BuyRequestModal'
+import BuyRequestModal from '@/components/BuyRequestModal'
 import ShareButtons from '@/components/ShareButtons'
 
 type Props = {
@@ -26,7 +26,6 @@ export default function EnquireButton({
   sellerWhatsapp,
 }: Props) {
   const [showModal, setShowModal] = useState(false)
-  const [preference, setPreference] = useState<ContactPreference>('whatsapp')
   const [phoneRevealed, setPhoneRevealed] = useState(false)
 
   const whatsappDigits = (sellerWhatsapp || '').replace(/\D/g, '')
@@ -34,17 +33,12 @@ export default function EnquireButton({
     `Hello, I'm interested in ${productName} (${formattedPrice}).`
   )}`
 
-  function openModal(chosen: ContactPreference) {
-    setPreference(chosen)
-    setShowModal(true)
-  }
-
   return (
     <div className="w-full space-y-3">
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => openModal('whatsapp')}
+          onClick={() => setShowModal(true)}
           className="btn-primary flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-sm sm:text-base"
         >
           <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -52,13 +46,6 @@ export default function EnquireButton({
               d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
           </svg>
           Request to Buy
-        </button>
-        <button
-          type="button"
-          onClick={() => openModal('call')}
-          className="btn-ghost flex items-center justify-center rounded-xl px-3 py-3 text-xs sm:text-sm"
-        >
-          Request callback
         </button>
         <button
           type="button"
@@ -114,7 +101,7 @@ export default function EnquireButton({
           productId={productId}
           productName={productName}
           price={formattedPrice}
-          initialPreference={preference}
+          initialPreference="whatsapp"
           onClose={() => setShowModal(false)}
         />
       )}

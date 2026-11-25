@@ -3,7 +3,7 @@
 This file tells Claude Code everything it needs to know about this project.
 Read this fully before making any changes.
 
-**Last verified:** 2026-11-25 (360° audit fixes + Session 12 storefront hero/contact actions + Session 13 reply-photo merge and Cloudinary tags; Telegram webhook authenticated, exposed secrets redacted, Vercel env vars confirmed; see `SECRET_ROTATION_CHECKLIST.md`)
+**Last verified:** 2026-11-25 (360° audit fixes + Session 12 storefront hero/contact actions + Session 13 reply-photo merge and Cloudinary tags + Session 14 full delivery policy and clearer navigation; Telegram webhook authenticated, exposed secrets redacted, Vercel env vars confirmed; see `SECRET_ROTATION_CHECKLIST.md`)
 
 ---
 
@@ -185,7 +185,7 @@ estore/
     ├── BuyRequestModal.tsx ← Bottom-sheet modal: name, phone, WhatsApp/Call preference, message
     │                          Submits to /api/enquire → success confirmation shown
     ├── ShareButtons.tsx    ← Facebook / X / copy link / native share buttons
-    ├── PolicyModal.tsx     ← Reusable dialog for Delivery Arrangement and Return Policy
+    ├── PolicyModal.tsx     ← Reusable dialog for Delivery and Logistics Policy and Return Policy
     ├── SearchBar.tsx       ← Live search client component: 300ms debounce + useTransition spinner
     │                          Wrapped in <Suspense> in page.tsx (required for useSearchParams)
     ├── ImageGallery.tsx    ← Multi-photo viewer: large main image + thumbnail strip + SOLD overlay
@@ -713,15 +713,17 @@ Re-run this if the bot token changes or the webhook needs resetting. Check regis
 - [x] **Reply-aware Telegram edits + product-name Cloudinary folders** (Session 11) — see Rules 15/18
 - [x] **Homepage hero slider** (Session 12) — 3 most recently updated available products, with
   swipe/dots/arrows and a compact grid of the remaining products underneath
-- [x] **Product contact actions** (Session 12) — reveal phone number, `wa.me` chat link, request
-  callback, Tawk chat, and share buttons. Phone/WhatsApp buttons stay hidden until their env vars
-  are filled in.
-- [x] **Similar products + policy dialogs** (Session 12) — category-based recommendations and
-  Delivery Arrangement / Return Policy modal links on every product page
+- [x] **Product contact actions** (Session 12/14) — reveal phone number, `wa.me` chat link, Request
+  to Buy, Tawk chat, and share buttons. Request callback was removed in Session 14 as a duplicate.
+- [x] **Similar products + policy dialogs** (Session 12/14) — category-based recommendations and
+  Delivery and Logistics Policy / Return Policy modal links on every product page
 - [x] **Request to Buy contact preference** (Session 12) — WhatsApp or Call radio buttons; the
   choice is stored with the enquiry and shown in the seller's Telegram notification
 - [x] **BUG 8 fixed + Cloudinary tags** (Session 13) — photo replies merge into the original
   Telegram product; Telegram assets are tagged `telegram`, product slug and `store-listing`
+- [x] **Full delivery policy + clearer storefront navigation** (Session 14) — replaced the draft
+  delivery copy with the owner's Delivery and Logistics Policy, removed the duplicate Request
+  callback button, and made the product-page store name a prominent brand-colored home button
 
 ---
 

@@ -54,14 +54,32 @@ export default function PolicyModal({ label, title, body }: Props) {
                 </svg>
               </button>
             </div>
-            <ul className="space-y-3">
-              {body.map(item => (
-                <li key={item} className="flex gap-2 text-sm text-gray-600 dark:text-gray-300">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-3">
+              {body.map(item => {
+                if (item.startsWith('## ')) {
+                  return (
+                    <h3 key={item} className="pt-1 text-sm font-bold text-gray-900 dark:text-white">
+                      {item.slice(3)}
+                    </h3>
+                  )
+                }
+
+                if (item.startsWith('! ')) {
+                  return (
+                    <p key={item} className="rounded-xl bg-amber-50 p-3 text-sm font-medium text-amber-900 dark:bg-amber-900/20 dark:text-amber-200">
+                      {item.slice(2)}
+                    </p>
+                  )
+                }
+
+                return (
+                  <p key={item} className="flex gap-2 text-sm text-gray-600 dark:text-gray-300">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
+                    <span>{item}</span>
+                  </p>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}

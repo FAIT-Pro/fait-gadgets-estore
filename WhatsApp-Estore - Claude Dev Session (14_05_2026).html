@@ -4973,6 +4973,19 @@ curl "https://api.telegram.org/bot&lt;TOKEN&gt;/setWebhook?url=https://fait-gadg
   </ul>
 </div>
 
+<div style="margin-top:24px; padding:16px; background:#0a2510; border-left:4px solid #25D366; border-radius:6px; color:#b3ffcc;">
+  <p><strong>Session 14 — Full delivery policy + clearer product navigation (25 Nov 2026)</strong></p>
+  <p><em>Owner:</em> "The Telegram reply test works as expected." Then supplied the proper Delivery and Logistics Policy to replace the drafted "Delivery Arrangement", asked to remove "Request callback" because it duplicates "Request to Buy", and said the product-page "FAIT Gadgets" home button is too tiny and should be obvious and brand-colored.</p>
+  <ul>
+    <li><code>app/product/[id]/page.tsx</code>: <code>DELIVERY_POLICY</code> replaced with the owner's full policy — Courier Service (including optional premium delivery with insurance, buyer pays courier/insurance) and Local Transport Service (motor park serving the buyer's state/town/region, buyer pays all transport costs). The important notice states product prices exclude delivery/logistics charges.</li>
+    <li>Modal label/title changed from "Delivery Arrangement" to "Delivery and Logistics Policy".</li>
+    <li><code>components/PolicyModal.tsx</code>: body renderer now supports <code>## </code> section headings and <code>! </code> notice blocks, so headings stand out and the important notice is highlighted.</li>
+    <li><code>components/EnquireButton.tsx</code>: removed "Request callback" and its preference state. "Request to Buy" opens the modal directly with WhatsApp preselected; the WhatsApp/Call radios remain available inside the modal.</li>
+    <li><code>app/product/[id]/page.tsx</code>: header home link is now a visible green brand pill with a home icon and store name, instead of a small arrow plus hidden text link.</li>
+    <li>Verification: <code>npm run build</code> compiled successfully, 16 routes. Local production-server smoke test: <code>{"status":200,"policy":true,"courier":true,"motorPark":true,"callback":false,"requestToBuy":true,"homeLabel":true,"brandHome":true}</code>.</li>
+  </ul>
+</div>
+
 <hr />
 <div style="color:#666; font-size:0.78rem; text-align:center; padding-top:16px; border-top:1px solid #222; margin-top:24px;">
   Full conversation transcript — WhatsApp E-Store Dev Session — 14 May – 25 Nov 2026<br/>

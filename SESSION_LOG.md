@@ -1303,3 +1303,33 @@ image grouping and tagging were not visible.
 ### Required setup
 Run the updated `schema.sql` in Supabase → SQL Editor. Without it, reply photos still work via
 the fallback append but concurrent album replies can race.
+
+### Live test result
+Owner reported: "The Telegram reply test works as expected." Commit `8806478` was pushed and the
+reply-photo merge behaves correctly in production.
+
+---
+
+## Session 14 — Full delivery policy + clearer product navigation (25 Nov 2026)
+
+### Owner request
+Replace the drafted "Delivery Arrangement" text with the full Delivery and Logistics Policy
+(Courier Service, Local Transport Service, and the important notice that delivery/logistics are
+paid separately by the buyer). Also remove "Request callback" because it duplicates "Request to
+Buy", and make the product-page "FAIT Gadgets" home button obvious and brand-colored.
+
+### Changes
+- `app/product/[id]/page.tsx` — `DELIVERY_POLICY` replaced with the owner's full policy text;
+  modal label/title changed from "Delivery Arrangement" to "Delivery and Logistics Policy".
+- `components/PolicyModal.tsx` — body renderer now supports `## ` section headings and `! ` notice
+  blocks, so the policy displays as titled sections plus a highlighted important notice.
+- `components/EnquireButton.tsx` — removed the "Request callback" button and its preference state.
+  "Request to Buy" now opens the modal directly with WhatsApp preselected; the modal still offers
+  WhatsApp/Call radios as requested earlier.
+- `app/product/[id]/page.tsx` — header home link is now a visible green brand pill with a home
+  icon and the store name, instead of a small arrow plus hidden text link.
+
+### Verification
+- `npm run build` → compiled successfully, 16 routes (same metadataBase / browserslist warnings).
+- Local production-server smoke test on one product page:
+  `{"status":200,"policy":true,"courier":true,"motorPark":true,"callback":false,"requestToBuy":true,"homeLabel":true,"brandHome":true}`.

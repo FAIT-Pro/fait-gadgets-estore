@@ -17,9 +17,16 @@ import type { Product }   from '@/lib/supabase'
 export const revalidate = 600
 
 const DELIVERY_POLICY = [
-  'Orders are confirmed after the seller contacts you.',
-  'Delivery within Lagos is arranged directly with the seller; nationwide delivery is available by arrangement.',
-  'Delivery fees and timelines are confirmed before payment.',
+  'Customers can choose between two delivery options:',
+  '## 1. Courier Service',
+  'Have your order delivered through a courier service.',
+  'You may opt for premium delivery, which includes insurance coverage for the value of your purchased items.',
+  'Any applicable courier and insurance charges are borne by the buyer.',
+  '## 2. Local Transport Service',
+  'We arrange delivery through a suitable motor park serving your state, town, or region.',
+  'Your order will be transported to the selected motor park for onward delivery to your destination.',
+  'The buyer is responsible for all transportation costs, including delivery to the motor park and transportation from the motor park to the final destination.',
+  '! Important Notice: The price of the products you purchase does not include delivery or logistics charges. All transportation costs are the responsibility of the buyer and must be paid separately.',
 ]
 
 const RETURN_POLICY = [
@@ -114,13 +121,16 @@ export default async function ProductPage({
 
       <header className="sticky top-0 z-10 border-b border-gray-100 bg-white dark:border-gray-800 dark:bg-gray-900">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
-          <Link href="/" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" aria-label="Back to products">
-            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          <Link
+            href="/"
+            aria-label={`Back to ${storeName} home`}
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-brand-700 dark:bg-brand-500 dark:hover:bg-brand-600"
+          >
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M3 10.5 12 3l9 7.5M5.5 9.5V21h13V9.5M9.5 21v-6h5v6" />
             </svg>
-          </Link>
-          <Link href="/" className="hidden text-xs text-gray-400 hover:text-brand-600 sm:block dark:text-gray-500">
-            {storeName}
+            <span>{storeName}</span>
           </Link>
           <ThemeToggle />
           <div className="min-w-0 flex-1 text-right">
@@ -183,7 +193,7 @@ export default async function ProductPage({
           )}
 
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-gray-100 pt-4 dark:border-gray-800">
-            <PolicyModal label="Delivery Arrangement" title="Delivery Arrangement" body={DELIVERY_POLICY} />
+            <PolicyModal label="Delivery and Logistics Policy" title="Delivery and Logistics Policy" body={DELIVERY_POLICY} />
             <PolicyModal label="Return Policy" title="Return Policy" body={RETURN_POLICY} />
           </div>
         </div>
